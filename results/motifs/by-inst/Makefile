@@ -19,6 +19,16 @@ export TMPDIR := /broad/hptmp/aksarkar
 
 all: $(addprefix $(PHENO).$(CLUSTER).,fisher.txt summary matches)
 
+counts: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.counts)))
+
+%.counts:
+	cat $*.*.matches | wc -l
+
+regulators: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.regulators)))
+
+%.regulators:
+	cat $*.*.summary | awk 'function i() {k=$$1; sub(/_[0-9]$$/, "", $$2); m=$$2} NR == 1 {i()} $$1 != k {print m; i()} END {print m}' | sort | uniq | awk 'NR == 1 {r = $$0} NR > 1 && NR < 6 {r = r "," $$0} END {if (NR >= 6) {r = r " (" NR " total)"}; print "$*", r}'
+
 $(PHENO).%.matches: $(PHENO).%.fisher.txt $(PHENO).top.bed.gz c%.bed.gz $(PWMS)
 	awk 'NF == 4 {print $$1}' $< | parallel -j1 --halt now,fail=1 "zgrep {} c$*.bed.gz | $(INTERSECT) -u -wa -a $(ENHCLUSTERS)/$*.bed.gz -b stdin | $(INTERSECT) -wa -wb -a $(PHENO).top.bed.gz -b stdin | frea-motifs {} $(PWMS)" >$@
 
