@@ -1,66 +1,72 @@
-BASE := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results
-DATA := /broad/compbio/aksarkar/data
+SHELL := bash
+GWAS := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/haplotypes
+SRCDIR := /broad/compbio/aksarkar/data/roadmap/hb-features/EnhClusters
+SUMMARY := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/impg/out
+CUTOFFS := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/rrplot/core-features/all-traits/cutoffs
+MHC := /broad/compbio/aksarkar/data/mask/mhc+5mb.bed.gz
+LD := /broad/compbio/pouyak/popgen/proj/1kg/phase1/corr/EUR+.txt.gz
+
 CODE := $(HOME)/code
-SRCDIR := $(DATA)/roadmap/core-features/Enh
-PHENO := T1D
 SRC := $(wildcard $(SRCDIR)/*.bed.gz)
-
-GWAS := $(BASE)/motifs/by-inst/top.bed.gz
-
-THRESH := $(shell awk 'NR == 1 {print $$2}' $(BASE)/matched/core-features/cutoffs)
-
-PARALLEL := parallel -j1
+CASES := BD CAD CD RA T1D T2D
+MAPPING := "BD pgc-bip" "CAD cardiogram-cad" "CD iibdgc-cd" "RA stahl-ra" "T1D bradfield-t1d" "T2D diagram-t2d"
 INTERSECT := bedtools intersect -sorted -nobuf
-
-MAKE_GRM = if [ -s $*.tags ]; then gcta64-1.24 --bfile $(PHENO) --keep $(PHENO).grm.id --extract $< --make-grm --out $(@:.grm.bin=) &>$(@:.grm.bin=).log; else touch $@; fi
-PRINT := $(PARALLEL) echo ":::"
+GCTA := gcta64-1.24 --thread-num 8
+MAKE_GRM = if [ -s $*.tags ]; then $(GCTA) --bfile $(PHENO) --keep $(GWAS)/$(PHENO).grm.id --extract $< --make-grm --out $(@:.grm.bin=) &>$(@:.grm.bin=).log; else touch $@; fi
+PRINT := parallel -j1 echo ":::"
 
 export LC_ALL=C
 
 %.pdf: %.txt
 	Rscript $(CODE)/wtccc/gcta/plot_hsq_vs_annotations.R $<
 
-%.snps: $(GWAS) $(SRCDIR)/%.bed.gz
-	$(INTERSECT) -a $(word 1, $^) -b $(word 2, $^) | cut -f4 >$@
+%.hsq: %.grms %.grm.bin %.c.grm.bin
+	if [ -s $*.grm.bin ]; then $(GCTA) --reml --mgrm $*.grms --pheno $(GWAS)/$(PHENO).pheno --qcovar $(GWAS)/$(PHENO).eigenvec --prevalence $(PREVALENCE) --out $*; else $(PRINT) "V(G1)/Vp_L 0 0" "Pval 1" >$@; fi
 
-%.tags: $(PHENO)-clean.snps %.snps top.ld.gz
-	if [ -s $*.snps ]; then python $(CODE)/ld/1kg/tag.py $^ >$@; else touch $@; fi
-
-$(addprefix %.grm.,bin N.bin id): %.tags $(PHENO).grm.id
+$(addprefix %.grm.,bin N.bin id): %.tags $(GWAS)/$(PHENO).grm.id
 	$(MAKE_GRM)
 
-$(addprefix %.c.grm.,bin N.bin id): %.tags $(PHENO).grm.id
+$(addprefix %.c.grm.,bin N.bin id): %.tags $(GWAS)/$(PHENO).grm.id
 	$(MAKE_GRM:extract=exclude)
 
-%.params:
-	$(PRINT) $* $*.c >$*.grms; $(PRINT) $(PHENO) $(PHENO) >$*.subtractvecs; $(PRINT) "grmlist=$*.grms" "subtractvecs=$*.subtractvecs" "phenos=$(PHENO).pheno" "covars=$(PHENO).eigenvec" "prevalence=0.005" >$@
+%.grms: %.grm.bin %.c.grm.bin
+	$(PRINT) $* $*.c >$@
 
-%.hsq: %.params %.grm.bin %.c.grm.bin
-	if [ -s $*.grm.bin ]; then java -jar $(HOME)/.local/src/PCGCRegression/java-pcgc/PCGCRegression.jar $< &>$@; else echo 'G0 0 0 0' >$@; fi
+%.tags: $(PHENO)-clean.snps %.snps $(PHENO).ld.gz
+	if [ -s $*.snps ]; then python -m frea.ld.tag $^ >$@; else touch $@; fi
 
-h2g-vs-$(notdir $(SRCDIR)).txt: $(notdir $(SRC:.bed.gz=.hsq))
-	$(PARALLEL) awk -f $(CODE)/wtccc/gcta/h2g-vs-annotation.awk ":::" $^ >$@
-
-joblist:
-	parallel --dry-run make SRCDIR=$(SRCDIR) SRC={} ::: $(SRC) >$@
-
-top.ld.gz: $(PHENO)-clean.snps
-	python $(CODE)/ld/1kg/filter.py $< $(GWAS) /broad/compbio/pouyak/popgen/proj/1kg/phase1/corr/EUR.txt.gz | gzip >$@
-
-$(PHENO)-clean.snps: $(PHENO).bed
+%-clean.snps: %.bed
 	cut -f2 $(<:.bed=.bim) >$@
 
-$(PHENO).bed: $(PHENO)-clean.names
-	plink --bfile $(PHENO)-clean --update-name $< --make-bed --out $(@:.bed=)
+$(addprefix %.,bed bim fam): %-clean.names
+	plink --bfile $(GWAS)/$*-clean --update-name $< --make-bed --out $*
 
-$(PHENO)-clean.names: pre
-	python $(CODE)/util/join_bed_1kg.py <$(@:.names=.bim) >$@
+%-clean.names: $(GWAS)/%-clean.bim
+	python -c "from frea.summary.process import *; fix_plink_bim_names()" <$< >$@
 
-pre:
-	ln -sf /broad/hptmp/aksarkar/haplotypes/$(PHENO){,-clean}.* . && touch $@
+h2g-vs-$(notdir $(SRCDIR)).txt:
+	python -m frea.heritability.postprocess >$@
+
+hsq: $(addprefix $(PHENO).,$(notdir $(SRC:.bed.gz=.hsq)))
+
+joblist.2:
+	parallel -C" " --dry-run 'make PHENO={1} PREVALENCE={2} SRC={3} {1}.$$(basename {3} .bed.gz).hsq' :::: $(GWAS)/prevalences.txt ::: $(SRCDIR)/*.bed.gz | grep -v HT >$@
+
+joblist.1:
+	parallel -C" " --dry-run '$(INTERSECT) -a {2}.bed.gz -b {3} | cut -f4 >{1}.$$(basename {3} .bed.gz).snps' ::: $(MAPPING) ::: $(SRCDIR)/*.bed.gz >$@
+
+joblist: $(CASES:=-clean.snps)
+	parallel --dry-run -C" " "python -m frea.ld.filter {1}-clean.snps {2}.bed.gz $(LD) | gzip >{1}.ld.gz" ::: $(MAPPING) >$@
+
+names: $(CASES:=-clean.snps)
+
+top: $(CUTOFFS)
+	parallel -C" " -j1 '$(INTERSECT) -v -a $(SUMMARY)/{1} -b $(MHC) | awk '"'"'$$5 > {2}'"'"' | gzip >{1}' :::: $<
 
 clean:
-	parallel -X rm -f ::: $(notdir $(SRC:bed.gz=*)) pre
+	parallel -X rm -f ::: $(foreach c,$(CASES),$(addprefix $(c).*.,hsq tags c.* grm* log))
+
+.PRECIOUS: $(addprefix %.,bed bim fam) %.hsq %.tags
 
 .PHONY: clean
 
