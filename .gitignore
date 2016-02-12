@@ -1,0 +1,13 @@
+*.bed
+*.bim
+*.eigen*
+*.fam
+*.genes
+*.grm.*
+*.gz
+*.matches
+*.out
+*.pdf
+*.pheno
+*.summary
+*.txt
