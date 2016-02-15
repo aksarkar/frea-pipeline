@@ -1,10 +1,15 @@
-CODE := $(HOME)/code/enr/generic/matched
 DATA := /broad/compbio/aksarkar/data
-BASE := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results
-GWAS := $(BASE)/impg/out/*.bed.gz
+RESULTS := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results
+SUMMARY := $(RESULTS)/impg/out
+MHC := $(DATA)/mask/mhc+5mb.bed.gz
 
 FEATURES := core-features
 
-$(FEATURES)/joblist: $(BASE)/rrplot/core-features/all-traits/cutoffs $(BASE)/struct/table.txt.gz
+$(FEATURES)/joblist: $(RESULTS)/rrplot/core-features/all-traits/cutoffs $(RESULTS)/struct/table.txt.gz
 	mkdir -p $(FEATURES)
-	parallel --dry-run -C" " bash $(CODE)/test.sh :::: $(word 1,$^) ::: $(word 2,$^) ::: $(DATA)/roadmap/$(FEATURES)/*/*.bed.gz >$@
+	parallel --dry-run -C" " frea-matched :::: $(word 1,$^) ::: $(word 2,$^) ::: $(DATA)/roadmap/$(FEATURES)/*/*.bed.gz >$@
+
+bed: $(notdir $(wildcard $(SUMMARY)/*.bed.gz))
+
+%.bed.gz: $(SUMMARY)/%.bed.gz
+	bedtools intersect -sorted -nobuf -v -a $< -b $(MHC) | gzip >$@
