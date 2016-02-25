@@ -50,7 +50,7 @@ known-genes: genes
 	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
 genes:
-	parallel -j1 -C'\t' make NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Type 1 Diab	bradfield-t1d" "Type 2 Diab	diagram-t2d"
+	parallel -j1 -C'\t' make NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Diabetes Mellitus, Type 1	bradfield-t1d" "Diabetes Mellitus, Type 2	diagram-t2d"
 
 .PHONY: genes
 
