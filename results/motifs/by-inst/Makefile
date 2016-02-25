@@ -56,7 +56,7 @@ top: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.top.bed.gz))
 	$(INTERSECT) -v -a $(GWAS)/$*.bed.gz -b $(DATA)/mask/mhc+5mb.bed.gz | awk '$$5 >= $(THRESH)' | gzip >$@
 
 c%.bed.gz: enriched
-	python -m frea.motifs.filter_instances c$* $< $(ENCODE)/matches.bed.gz | $(INTERSECT) -u -a stdin -b $(ENHCLUSTERS)/$*.bed.gz | gzip >$@
+	zcat $(ENCODE)/matches.bed.gz | awk 'BEGIN {while (getline < "$<") {if ($$4 == "c$*") {keep[$$2] = 1}}} keep[$$4] > 0 {print}' | $(INTERSECT) -u -a stdin -b $(ENHCLUSTERS)/$*.bed.gz | gzip >$@
 
 enriched:
 	zcat $(ENCODE)/enrichments.txt.gz | awk '$$14 > 1.5 {split($$1, a, "/"); if (a[4] > 0.3) {print}}' >$@
