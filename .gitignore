@@ -11,3 +11,6 @@
 *.pheno
 *.summary
 *.txt
+.rsync-filter
+joblist*
+locate.db
