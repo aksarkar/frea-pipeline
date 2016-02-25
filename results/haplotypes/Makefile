@@ -35,6 +35,29 @@ $(addprefix %.grm.,bin N id): $(addprefix %-temp.grm.,bin N id)
 $(addprefix %-temp.grm.,bin N id): $(addprefix %-clean.,bed bim fam)
 	$(GCTA)-temp --bfile $(basename $<) --make-grm >/dev/null
 
+$(addprefix %-mhc.,ped map): $(addsuffix _06.bed,% NBS 58C) %.mhc.merge %-merge.fam mhc.txt
+	$(PLINK) --bfile $(<:.bed=) --merge-list $*.mhc.merge --extract range mhc.txt --keep $*-merge.fam --geno .01 --maf .01 --hwe .05 --recode 01 --output-missing-genotype N >/dev/null
+
+%.mhc.merge:
+	parallel -j1 echo {}_06 ":::" 58C NBS >$@
+
+%.haps.gz: %.haps
+	gzip $<
+
+%.haps: C = $(shell echo $* | sed s/^.*_0\\?//)
+%.haps: %.snp.strand.exclude %-phase.bed
+	shapeit -B $* --exclude-snp $< -R $(1KG)/ALL.chr$(C).$(REF).nosing.{haplotypes,legend}.gz $(1KG)/ALL.$(REF).sample -T 8 -O $* -L $*.phase >/dev/null
+
+%.snp.strand.exclude: COHORT = $(word 1, $(subst _, ,$*))
+%.snp.strand.exclude: CHROMOSOME = $(word 2, $(subst _, ,$*))
+%.snp.strand.exclude: C = $(shell echo $* | sed s/^.*_0\\?//)
+%.snp.strand.exclude: %-phase.bed
+	shapeit -check -B $* -R $(1KG)/ALL.chr$(C).$(REF).nosing.{haplotypes,legend}.gz $(1KG)/ALL.$(REF).sample -L $* >/dev/null || true
+
+%-phase.bed: COHORT = $(word 1, $(subst _, ,$*))
+%-phase.bed: %.bed
+	bash -c "$(PLINK) --bfile $* --keep <(cut -f1,2 $(COHORT)-clean.fam) --extract <(cut -f2 $(COHORT)-clean.bim) --make-bed >/dev/null"
+
 $(addprefix %-clean.,bed bim fam): %-merge.exclude $(addprefix %-merge.,bed bim fam)
 	$(PLINK) --bfile $*-merge --exclude $< --mind .01 --geno .01 --maf .01 --hwe .05 --make-bed >/dev/null
 
@@ -54,19 +77,6 @@ mhc.txt:
 
 %.merge:
 	parallel -j1 echo {1}_{2} ":::" 58C NBS $* ::: $$(seq -w 1 22) | grep -v $*_01 >$@
-
-%.haps.gz: %.haps
-	gzip $<
-
-%.haps: C = $(shell echo $* | sed s/^.*_0\\?//)
-%.haps: %.snp.strand.exclude %.bed
-	shapeit -B $* --exclude-snp $< -R $(1KG)/ALL.chr$(C).$(REF).nosing.{haplotypes,legend}.gz $(1KG)/ALL.$(REF).sample -T 8 -O $* -L $*.phase >/dev/null
-
-%.snp.strand.exclude: COHORT = $(word 1, $(subst _, ,$*))
-%.snp.strand.exclude: CHROMOSOME = $(word 2, $(subst _, ,$*))
-%.snp.strand.exclude: C = $(shell echo $* | sed s/^.*_0\\?//)
-%.snp.strand.exclude: %.bed
-	shapeit -check -B $* -R $(1KG)/ALL.chr$(C).$(REF).nosing.{haplotypes,legend}.gz $(1KG)/ALL.$(REF).sample -L $* >/dev/null || true
 
 %.bed: COHORT = $(word 1, $(subst _, ,$*))
 %.bed: C = $(shell echo $* | sed s/^.*_0\\?//)
@@ -117,6 +127,12 @@ strand:
 
 pre: manifest
 	parallel -X ln -sf {} . :::: $<
+
+joblist.2:
+	parallel -j1 --dry-run make {1}_{2}.haps.gz ::: $(CASES) ::: $$(seq -w 1 22) >$@
+
+joblist.1:
+	parallel -j1 --dry-run make {}-clean.bed ::: $(CASES) >$@
 
 joblist:
 	parallel -j1 --dry-run make {1}_{2}.bed ::: $(COHORT) ::: $$(seq -w 1 22) >$@
