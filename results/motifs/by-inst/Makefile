@@ -8,8 +8,6 @@ ENCODE := $(DATA)/encode
 MHC := $(DATA)/mask/mhc+5mb.bed.gz
 GWAS := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/impg/out
 ENHCLUSTERS := /broad/compbio/aksarkar/data/roadmap/hb-features/EnhClusters
-MOTIFS := $(ENCODE)/insts.txt
-PWMS := /broad/compbio/pouyak/motifs/verts/insts/hg19/tfh/Intergenic/optmm/8mer/motifs-toscan.txt
 
 INTERSECT = bedtools intersect -sorted -nobuf
 
@@ -29,8 +27,8 @@ regulators: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.regul
 %.regulators:
 	cat $*.*.summary | awk 'function i() {k=$$1; sub(/_[0-9]$$/, "", $$2); m=$$2} NR == 1 {i()} $$1 != k {print m; i()} END {print m}' | sort | uniq | awk 'NR == 1 {r = $$0} NR > 1 && NR < 6 {r = r "," $$0} END {if (NR >= 6) {r = r " (" NR " total)"}; print "$*", r}'
 
-$(PHENO).%.matches: $(PHENO).%.fisher.txt $(PHENO).top.bed.gz c%.bed.gz $(PWMS)
-	awk 'NF == 4 {print $$1}' $< | parallel -j1 --halt now,fail=1 "zgrep {} c$*.bed.gz | $(INTERSECT) -u -wa -a $(ENHCLUSTERS)/$*.bed.gz -b stdin | $(INTERSECT) -wa -wb -a $(PHENO).top.bed.gz -b stdin | frea-motifs {} $(PWMS)" >$@
+$(PHENO).%.matches: $(PHENO).%.fisher.txt $(PHENO).top.bed.gz c%.bed.gz
+	awk 'NF == 4 {print $$1}' $< | parallel -j1 --halt now,fail=1 "zgrep {} c$*.bed.gz | $(INTERSECT) -u -wa -a $(ENHCLUSTERS)/$*.bed.gz -b stdin | $(INTERSECT) -wa -wb -a $(PHENO).top.bed.gz -b stdin | frea-motifs {} $(ENCODE)/motifs-toscan.txt >$@
 
 $(PHENO).%.summary: $(PHENO).%.fisher.txt
 	awk 'NF == 4' $< | sort -k1 | bash -c "join <(sort -k1 $(ENCODE)/clusters.txt) - -o '1.2 2.1 2.2 2.3'" | sort -k1,1 -k4,4n >$@
@@ -39,7 +37,7 @@ $(PHENO).%.fisher.txt: $(addprefix $(PHENO).%.,$(addsuffix .counts,fg bg) $(adds
 	python -m frea.motifs.fisher $^ $(FDR) >$@
 
 $(PHENO).%.counts: $(PHENO).%.hits
-	python -m frea.motifs.counts $(MOTIFS) <$< >$@
+	python -m frea.motifs.counts $(ENCODE)/insts.txt <$< >$@
 
 $(PHENO).%.hits: $(PHENO).%.regions c$(CLUSTER).bed.gz 
 	$(INTERSECT) -wa -wb -a $< -b c$(CLUSTER).bed.gz | cut -f1,2,3,7 >$@
