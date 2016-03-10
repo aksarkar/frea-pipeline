@@ -5,10 +5,13 @@
 *.genes
 *.grm.*
 *.gz
+*.joblog
 *.matches
+*.o*
 *.out
 *.pdf
 *.pheno
+*.po*
 *.summary
 *.txt
 .rsync-filter
