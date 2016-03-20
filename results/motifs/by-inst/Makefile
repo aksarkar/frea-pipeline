@@ -11,11 +11,19 @@ ENHCLUSTERS := /broad/compbio/aksarkar/data/roadmap/hb-features/EnhClusters
 
 INTERSECT = bedtools intersect -sorted -nobuf
 
+define KNOWN
+awk -vOFS='\t' -vFS='\t' 'FNR == NR {sub(/_.*$$/, "", $$2); tf[$$2] = 1} FNR < NR {if (tf[$$7]) {print $$2, $$7}}' <(cat *.summary | tr ' ' '\t') <(zcat $(DATA)/phegeni/phegeni.txt.gz) | sort -t$$'\t' -k1
+endef
+export KNOWN
+
 export LC_ALL := C
 export PATH := $(PATH):/broad/compbio/pouyak/local/bin
 export TMPDIR := /broad/hptmp/aksarkar
 
 all: $(addprefix $(PHENO).$(CLUSTER).,fisher.txt summary matches)
+
+known-tfs.txt:
+	bash -c "$$KNOWN" >$@
 
 counts: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.counts)))
 
