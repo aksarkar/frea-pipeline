@@ -22,6 +22,12 @@ export TMPDIR := /broad/hptmp/aksarkar
 
 all: $(addprefix $(PHENO).$(CLUSTER).,fisher.txt summary matches)
 
+%.pdf: %.dot
+	circo -x -Tpdf -o$@ $<
+
+all-enrichments-network.dot:
+	python -m frea.motifs.network >$@
+
 known-tfs.txt:
 	bash -c "$$KNOWN" >$@
 
