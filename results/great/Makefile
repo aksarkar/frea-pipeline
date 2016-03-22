@@ -8,14 +8,27 @@ THRESH := 3
 CLUSTER := 1
 FDR := .05
 
+define FILTER
+awk -vFS='\t' -vOFS='\t' 'FNR > 5 && $$1 == "GO Biological Process" && $$7 < $(FDR) && $$8 > 1 {print $$3, $$19}'
+endef
+export FILTER
+
+define COUNT_PATHWAYS
+awk -vFS='\t' -vOFS='\t' '/^[^#]/ && $1 == "GO Biological Process" && $8 > 1 && $7 < .05 {n += 1} END {print n}'
+endef
+export COUNT_PATHWAYS
+
+all: $(PHENO).$(CLUSTER).out
+
+count-pathways:
+	parallel -C" " bash -c "$$COUNT_PATHWAYS {1}.*.txt" :::: /broad/compbio/aksarkar/projects/roadmap/results/rrplot/core-features/all-traits/Enh.ranks | awk '{n += $$1} END {print n / NR}'
+
 %.summary:
 	awk '{print $5}' *-$*.*.out | tr ',' '\n' | sort | uniq | wc -l
 	head *-$*.*.out
 
-.PHONY: %.summary
-
 $(PHENO).$(CLUSTER).out: $(PHENO).$(CLUSTER).txt
-	awk -f ~/code/enr/great/post.awk $< >$@
+	bash -c "$$FILTER $<" >$@
 
 $(PHENO).%.txt: $(PHENO).%.bed.gz
 	curl -fsSG "http://bejerano.stanford.edu/great/public/cgi-bin/greatStart.php" -d requestURL="http://web.mit.edu/aksarkar/great/$<" -d bgURL="http://web.mit.edu/aksarkar/EnhClusters/$*.bed.gz" -d requestSpecies=hg19 -d outputType=batch -o $@
@@ -37,12 +50,6 @@ joblist: clusters
 clusters: ../matched/hb-features/EnhClusters.in
 	awk '$$4 > 0' $< | sort -k8n | awk 't == 0 && $$8 > NR * $(FDR) / (226 * 8) {t = $$8} t == 0 || $$8 <= t {print $$1, $$3, $$4}' | sort -k1,1 -k2,2n >$@
 
-$(PHENO).pathways.txt: $(CLUSTERS:=.out)
-	cat $^ | sort -k1 | join -t$$'\t' - $(DATA)/roadmap/meta/manolis-clusters.txt -o "2.1 2.2 1.2 1.3 1.4 1.5 1.6" | sort -k1,1n -k6,6g -k4,4gr | awk -vOFS='\t' 'BEGIN {print "cluster", "description", "term", "fold", "p", "q", "genes"} {print}' >$@
-
-candidates: pathways.txt
-	sed -E -n "s/.*Name=([^;]*);.*/\1/p" $(DATA)/mask/t1d.genes.gff | sort | uniq | parallel -j1 grep -o -m1 {} $< >$@
-
 new-genes: genes
 	parallel 'awk -vFS="\t" '"'"'$$2 != "" {if (s != "") {s = s","} s = s $$2} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
@@ -50,12 +57,12 @@ known-genes: genes
 	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
 genes:
-	parallel -j1 -C'\t' make NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Diabetes Mellitus, Type 1	bradfield-t1d" "Diabetes Mellitus, Type 2	diagram-t2d"
-
-.PHONY: genes
+	parallel -j1 -C'\t' make -B NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Diabetes Mellitus, Type 1	bradfield-t1d" "Diabetes Mellitus, Type 2	diagram-t2d"
 
 %.genes:
-	comm <(grep "$(NAME)" $(DATA)/phegeni/phegeni.txt | cut -f7 | tr ' ' '\n' | sort | uniq) <(cut -f6 $*.*.out | tr ',' '\n' | sort | uniq) >$@
+	comm <(zgrep "$(NAME)" $(DATA)/phegeni/phegeni.txt.gz | cut -f7 | tr ' ' '\n' | sort | uniq) <(cut -f2 $*.*.out | tr ',' '\n' | sort | uniq) >$@
+
+.PHONY: genes %.summary pathways
 
 .PRECIOUS: %.bed.gz %.txt
 
