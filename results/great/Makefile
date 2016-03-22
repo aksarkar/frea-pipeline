@@ -9,23 +9,16 @@ CLUSTER := 1
 FDR := .05
 
 define FILTER
-awk -vFS='\t' -vOFS='\t' 'FNR > 5 && $$1 == "GO Biological Process" && $$7 < $(FDR) && $$8 > 1 {print $$3, $$19}'
+awk -vFS='\t' -vOFS='\t' 'FNR > 5 && $$1 == "GO Biological Process" && $$7 < $(FDR) && $$8 > 1 {print $$3, $$19}' $*
 endef
 export FILTER
 
-define COUNT_PATHWAYS
-awk -vFS='\t' -vOFS='\t' '/^[^#]/ && $1 == "GO Biological Process" && $8 > 1 && $7 < .05 {n += 1} END {print n}'
-endef
-export COUNT_PATHWAYS
-
 all: $(PHENO).$(CLUSTER).out
 
-count-pathways:
-	parallel -C" " bash -c "$$COUNT_PATHWAYS {1}.*.txt" :::: /broad/compbio/aksarkar/projects/roadmap/results/rrplot/core-features/all-traits/Enh.ranks | awk '{n += $$1} END {print n / NR}'
+summary: $(addsuffix .summary,ad bip cad cd ra scz t1d t2d)
 
 %.summary:
-	awk '{print $5}' *-$*.*.out | tr ',' '\n' | sort | uniq | wc -l
-	head *-$*.*.out
+	bash -c "python -m frea.go /broad/compbio/aksarkar/projects/roadmap/data/go/go-basic.obo.gz <(cat *-$*.*.out) >$@"
 
 $(PHENO).$(CLUSTER).out: $(PHENO).$(CLUSTER).txt
 	bash -c "$$FILTER $<" >$@
@@ -50,10 +43,10 @@ joblist: clusters
 clusters: ../matched/hb-features/EnhClusters.in
 	awk '$$4 > 0' $< | sort -k8n | awk 't == 0 && $$8 > NR * $(FDR) / (226 * 8) {t = $$8} t == 0 || $$8 <= t {print $$1, $$3, $$4}' | sort -k1,1 -k2,2n >$@
 
-new-genes: genes
+new-genes.txt: genes
 	parallel 'awk -vFS="\t" '"'"'$$2 != "" {if (s != "") {s = s","} s = s $$2} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
-known-genes: genes
+known-genes.txt: genes
 	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
 genes:
@@ -62,7 +55,7 @@ genes:
 %.genes:
 	comm <(zgrep "$(NAME)" $(DATA)/phegeni/phegeni.txt.gz | cut -f7 | tr ' ' '\n' | sort | uniq) <(cut -f2 $*.*.out | tr ',' '\n' | sort | uniq) >$@
 
-.PHONY: genes %.summary pathways
+.PHONY: genes %.summary count-pathways
 
 .PRECIOUS: %.bed.gz %.txt
 
