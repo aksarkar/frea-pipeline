@@ -12,7 +12,7 @@ ENHCLUSTERS := /broad/compbio/aksarkar/data/roadmap/hb-features/EnhClusters
 INTERSECT = bedtools intersect -sorted -nobuf
 
 define KNOWN
-awk -vOFS='\t' -vFS='\t' 'FNR == NR {sub(/_.*$$/, "", $$2); tf[$$2] = 1} FNR < NR {if (tf[$$7]) {print $$2, $$7}}' <(cat *.summary | tr ' ' '\t') <(zcat $(DATA)/phegeni/phegeni.txt.gz) | sort -t$$'\t' -k1
+awk -vOFS='\t' -vFS='\t' 'FNR == NR {sub(/_.*$$/, "", $$4); tf[$$4] = 1} FNR < NR {split($$7, genes, " "); for (g in genes) {if (genes[g] in tf) {print $$2, genes[g]}}}' <(zcat $< | tr ' ' '\t') <(zcat $(word 2, $^)) | sort -t$$'\t' -k1 | uniq
 endef
 export KNOWN
 
@@ -28,8 +28,11 @@ all: $(addprefix $(PHENO).$(CLUSTER).,fisher.txt summary matches)
 all-enrichments-network.dot:
 	python -m frea.motifs.network >$@
 
-known-tfs.txt:
+known-tfs.txt: all-enrichments-unclustered.txt.gz $(DATA)/phegeni/phegeni.txt.gz
 	bash -c "$$KNOWN" >$@
+
+all-enrichments-unclustered.txt.gz:
+	python -c "from frea.motifs.enrichment import *; output_cofactors()" | gzip >$@
 
 counts: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.counts)))
 
