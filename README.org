@@ -1,0 +1,21 @@
+#+TITLE: Functional Region Enrichment Analysis
+#+AUTHOR: Abhishek Sarkar
+#+OPTIONS: toc:nil num:nil ^:nil creator:nil html-style:nil
+
+This respository contains the computational pipeline used to perform the
+analysis presented in:
+
+Sarkar, Ward, Kellis. "Functional enrichments of disease variants across
+thousands of independent loci in eight diseases"
+
+* Dependencies
+  - aksarkar/frea
+  - BEDtools
+  - GNU parallel
+  - gtool
+  - IMPUTE2
+  - SNPTEST
+  - ImpG-Summary
+  - plink2
+  - curl
+  - wget
