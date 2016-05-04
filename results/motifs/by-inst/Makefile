@@ -3,11 +3,11 @@ THRESH := 3
 CLUSTER := 1
 FDR := 0.05
 
-DATA := /broad/compbio/aksarkar/data
+DATA := $(abspath ../../../data)
 ENCODE := $(DATA)/encode
 MHC := $(DATA)/mask/mhc+5mb.bed.gz
-GWAS := /broad/compbio/aksarkar/projects/gwas/wtccc1/EC21/results/impg/out
-ENHCLUSTERS := /broad/compbio/aksarkar/data/roadmap/hb-features/EnhClusters
+GWAS := ../../impg/out
+ENHCLUSTERS := $(DATA)/roadmap/hb-features/EnhClusters
 
 INTERSECT = bedtools intersect -sorted -nobuf
 
