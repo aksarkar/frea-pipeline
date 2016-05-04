@@ -117,7 +117,7 @@ joblist: sample exclude strand
 	parallel -j1 --dry-run make {1}_{2}.bed ::: $(COHORT) ::: $$(seq -w 1 22) >$@
 
 clean:
-	find . -type f \! \( -name "*.haps.gz" -o -name "*.eigenvec" -o -name "*.sample" \) | parallel -X rm
+	find . \( -type f -o -type l \) \! \( -name "Makefile" -o -name "manifest" -o -name "*.haps.gz" -o -name "*.eigenvec" -o -name "*.sample" -o -name "*.exclude" \) | parallel -X rm
 
 .PHONY: pre clean
 
