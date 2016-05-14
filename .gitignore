@@ -1,6 +1,7 @@
 *.bed
 *.bim
 *.eigen*
+*.exclude
 *.fam
 *.genes
 *.grm.*
@@ -12,8 +13,9 @@
 *.pdf
 *.pheno
 *.po*
+*.sample
 *.summary
 *.txt
 .rsync-filter
-joblist*
+*joblist*
 locate.db

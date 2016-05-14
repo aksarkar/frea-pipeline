@@ -9,7 +9,7 @@ Sarkar, Ward, Kellis. "Functional enrichments of disease variants across
 thousands of independent loci in eight diseases"
 
 * Dependencies
-  - aksarkar/frea
+  - http://www.github.com/aksarkar/frea
   - BEDtools
   - GNU parallel
   - gtool
