@@ -3,13 +3,16 @@ CASES := BD CAD CD HT RA T1D T2D
 COHORT := 58C NBS $(CASES)
 AUTOSOMES := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22
 
+%-install:
+	mv $**.gen.gz $(DATA)/wtccc/1kg-phase1
+
 %-gz:
 	parallel "cat $*_{}.*.gen | gzip >$*_{}.gen.gz" ::: $(AUTOSOMES)
 
 %-concordance:
 	awk '/>= 0.0/ {s += $$NF; n += 1} END {print s / n}' $**_summary
 
-.PHONY: %-concordance
+.PHONY: %-concordance %-gz %-install
 
 joblist: $(foreach c,$(COHORT),$(foreach a,$(AUTOSOMES),$(c)_$(a).joblist))
 	cat $^ >$@
@@ -50,4 +53,4 @@ export FILTER
 	zcat $< | python -c "$$FILTER" >$@
 
 clean:
-	find \( -name "*.log" -o -name "*.gen_*" \) | parallel -X rm
+	find \( -name "impute2.*" -o -name "*.log" -o -name "*.gen" -o -name "*.gen_*" \) | parallel -X rm
