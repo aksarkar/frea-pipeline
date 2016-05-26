@@ -23,3 +23,9 @@ cardiogram_gwas_results.zip:
 
 hg19_gwas_t1d_bradfield_4_18_0.gz:
 	$(CURL) "https://www.t1dbase.org/downloads/protected_data/GWAS_Data/hg19_gwas_t1d_bradfield_4_18_0.gz"
+
+reprogen-menarche.bed.gz: Menarche_19052016.txt.gz
+	python -c "from frea.summary.process import *; menarche('$<')" | gzip >$@
+
+reprogen-menopause.bed.gz: Menopause_22062016.txt.gz
+	python -c "from frea.summary.process import *; menopause('$<')" | gzip >$@
