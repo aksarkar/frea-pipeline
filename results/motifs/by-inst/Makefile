@@ -32,12 +32,7 @@ known-tfs.txt: all-enrichments-unclustered.txt.gz $(DATA)/phegeni/phegeni.txt.gz
 	bash -c "$$KNOWN" >$@
 
 all-enrichments-unclustered.txt.gz:
-	python -c "from frea.motifs.enrichment import *; output_cofactors()" | gzip >$@
-
-counts: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.counts)))
-
-%.counts:
-	cat $*.*.matches | wc -l
+	python -c "from frea.motifs.enrichments import *; output_cofactors()" | gzip >$@
 
 regulators: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.regulators)))
 
@@ -82,8 +77,8 @@ joblist.1: clusters
 joblist: clusters
 	awk '{print $$2}' $< | sort | uniq | parallel --dry-run make c{}.bed.gz >$@
 
-clusters: ../../matched/hb-features/EnhClusters.in
-	awk '$$4 > 0' $< | sort -k8n | awk 't == 0 && $$8 > NR * $(FDR) / (226 * 8) {t = $$8} t == 0 || $$8 <= t {print $$1, $$3, $$4}' | sort -k1,1 -k2,2n >$@
+clusters: ../../matched/hb-features/EnhClusters-significant.in
+	awk '{print $$1, $$3, $$4}' $< | sort -k1,1 -k2,2n >$@
 
 clean:
 	parallel -X rm -f ::: *.fg.* *.bg.* *.fisher.txt *.disruptions *.counts *.summary
