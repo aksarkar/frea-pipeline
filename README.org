@@ -19,3 +19,135 @@ thousands of independent loci in eight diseases"
   - plink2
   - curl
   - wget
+  - http://compbio.mit.edu/pouyak/software/extract-mfa.c
+  - http://compbio.mit.edu/pouyak/software/motif-match.c
+  - http://compbio.mit.edu/pouyak/software/apply-var.c
+  - http://compbio.mit.edu/pouyak/software/pk.h
+  - http://compbio.mit.edu/pouyak/software/rfile.h
+
+* Commentary
+
+The pipeline relies on many pieces of software and data generated in the Kellis
+lab with varying degrees of reproducibility, and also on some specifics of our
+computing environment. This repository is a best-effort attempt to publicly
+release as much of the analysis as possible; however, certain aspects requiring
+re-implementation to be fully reproducible are elaborated on below.
+
+** Running the code
+
+Importantly, this repository does not include code to farm work out to compute
+nodes in a cluster since this is highly dependent on the cluster
+environment. The basic idea is to generate a list of tasks in files named like
+"joblist", then use array jobs in PBS/Torque/GridEngine/LSF to run them in
+parallel. This way is more flexible in maximizing the use of available
+resources.
+
+In Univa Grid Engine, this is a simple but highly flexible implementation:
+
+#+BEGIN_SRC sh
+awk -vn=$SGE_TASK_LAST -vi=$SGE_TASK_ID 'NR % n == i - 1' $1 | parallel --joblog $JOB_NAME.$JOB_ID.$SGE_TASK_ID.joblog -j1 --halt now,fail,1
+#+END_SRC
+
+Other cluster managers set similar environment variables for array jobs. The
+script parses the array job parameters and loops over an appropriate subset of
+the lines of the first argument (corresponding to tasks). Error checking is
+done by parsing the joblog files and constructing joblists from failed tasks.
+
+#+BEGIN_SRC sh
+awk -vFS='\t' '$1 != "Seq" && ($7 != 0 || $8 != 0) {print $9}' $*
+#+END_SRC
+
+** Getting the reference data
+
+This is implemented in several pieces. The key tasks are to generate a
+directory structure of BED files containing the enhancer regions predicted in
+each of the 127 reference epigenomes. The naming is used to allow distributing
+work, then re-assembling the summarized result (frea-rrplot).
+
+We include \\b in the grep pattern Enh\\b because the core model includes a
+"genic enhancer" state labelled EnhG which shows transcription marks as well as
+enhancer marks. These are generally within genes and can complicate the
+interpretation of the results.
+
+#+BEGIN_SRC sh
+data/roadmap/Makefile
+data/roadmap/core-features/Makefile
+data/roadmap/hb-features/Makefile
+data/encode/Makefile
+data/mask/Makefile
+#+END_SRC
+
+This repository does not include the GWAS data since we are not allowed to
+share the WTCCC1 individual-level data, and the remaining data is publicly
+available. Direct links are given in data/gwas-summary-stats/Makefile when
+available, but some of the consortium websites (e.g. T1DBase) require
+registering as a user.
+
+The Stahl et al. 2012 study of RA is on hg17, so it requires lifting over
+before imputation. frea.summary.process.ra() outputs a BED file with hg17
+positions, which should be processed using UCSC liftOver and the appropriate
+chain file:
+
+http://hgdownload.cse.ucsc.edu/goldenPath/hg17/liftOver/hg17ToHg19.over.chain.gz
+
+** Imputing summary statistics
+
+In general, imputing summary statistics requires additional code to coerce data
+into the right format. The Python package frea.summary contains some utility
+functions which can simplify doing this.
+
+We re-implement the ImpG pipeline since we use the Thousand Genomes reference
+in OXSTATS format to handle one of the studies in the main paper. This can be
+replaced with the scripts provided in the original implementation.
+
+#+BEGIN_SRC sh
+data/1kg/Makefile
+results/impg/maps/Makefile
+results/impg/haps/Makefile
+results/impg/in/Makefile
+results/impg/beta/Makefile
+results/impg/out/Makefile
+#+END_SRC
+
+EUR+.txt.gz is pairwise LD using another custom program implemented in the
+lab. In principle this can be done using vcftools instead; however, a wrapper
+will be needed to format the output correctly. 
+
+The format for EUR+.txt.gz is tab-separated plaintext:
+
+rs189107123|chr1|10611|10611|G  rs144762171|chr1|13327|13327|C	0.286308        0.739698
+
+The first two columns are a pair of variants, followed by r^2 and D.  The names
+are formatted as rsid, chromosome, start (inclusive), end (inclusive), allele
+substitution. The Python function get_pouyak_name generates these from the 1KG
+reference information.
+
+The summary statistic format to take forward in the analysis is BED format,
+with the unique identifier described above in the name column (4) and -log10(p)
+in the score column (5).
+
+** Performing the analysis
+
+The analysis is implemented in four Makefiles; however, the main purpose of the
+Makefiles is to generate joblists which can be run using a wrapper as described
+above.
+
+#+BEGIN_SRC sh
+results/rrplot/core-features/Makefile
+results/matched/hb-features/Makefile
+results/great/Makefile
+results/motifs/by-inst/Makefile
+#+END_SRC
+
+Pathway analysis using GREAT requires putting the generated BED files on a
+publicly accessible HTTP server.
+
+The motif enrichment pipeline depends on software developed by Pouya
+Kheradpour. Instructions to compile these are available at
+http://compbio.mit.edu/pouyak/
+
+extract-mfa extracts sequence fragments in fasta format but expects data in a
+custom format (since it was developed to deal with multiple alignments). In
+principle, it can be replaced with bedtools getfasta and the hg19 reference
+sequence; however, an additional wrapper script to format identifiers will be
+required.
