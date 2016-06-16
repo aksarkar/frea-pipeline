@@ -19,6 +19,7 @@ thousands of independent loci in eight diseases"
   - plink2
   - curl
   - wget
+  - Graphviz 2.38
   - http://compbio.mit.edu/pouyak/software/extract-mfa.c
   - http://compbio.mit.edu/pouyak/software/motif-match.c
   - http://compbio.mit.edu/pouyak/software/apply-var.c
@@ -59,29 +60,81 @@ awk -vFS='\t' '$1 != "Seq" && ($7 != 0 || $8 != 0) {print $9}' $*
 
 ** Getting the reference data
 
-This is implemented in several pieces. The key tasks are to generate a
-directory structure of BED files containing the enhancer regions predicted in
-each of the 127 reference epigenomes. The naming is used to allow distributing
-work, then re-assembling the summarized result (frea-rrplot).
+This is implemented in several pieces. The key tasks are:
 
-We include \\b in the grep pattern Enh\\b because the core model includes a
-"genic enhancer" state labelled EnhG which shows transcription marks as well as
-enhancer marks. These are generally within genes and can complicate the
-interpretation of the results.
+1. Download Roadmap Epigenomics data and generate a directory structure of BED
+   files containing the enhancer annotations
+2. Download ENCODE data and prepare files for motif enrichment
+3. Download the Thousand Genomes reference (for SHAPEIT2/IMPUTE2 imputation in
+   WTCCC and summary statistic imputation) and compute LD information between
+   all SNPs in 1KG
 
 #+BEGIN_SRC sh
 data/roadmap/Makefile
 data/roadmap/core-features/Makefile
 data/roadmap/hb-features/Makefile
+#+END_SRC
+
+The required directory structure for annotations is
+*features/{annotation}/{id}.bed.gz. The naming is used to allow distributing
+work (script frea-rrplot), then re-assembling the summarized result (R function
+frea::plot_rrplot).
+
+We include \\b in the grep pattern Enh\\b because the ChromHMM core model
+includes a "genic enhancer" state labelled EnhG which shows transcription marks
+as well as enhancer marks. These are generally within genes and can complicate
+the interpretation of the results.
+
+#+BEGIN_SRC sh
 data/encode/Makefile
+#+END_SRC
+
+The ENCODE data is mostly public, with the exception of hierarchical clustering
+of PWMs. The similarity measure was published, but the clustering itself (cut
+at k=300 clusters) was not, so we include it in the repository.
+
+#+BEGIN_SRC sh
+data/1kg/Makefile
+data/ld/Makefile
 data/mask/Makefile
+#+END_SRC
+
+We use the Thousand Genomes reference in OXSTATS format to handle summary
+statistics from the Bradfield et al., 2011 studies in the main paper. These
+require odds ratios estimated from the WTCCC cohort since the meta-analyzed
+odds ratios were not published.
+
+EUR+.txt.gz is pairwise LD using another custom program implemented in the
+Kellis lab. We do not include the LD information as a public download since it
+requires approximately 20 GB of disk space. In principle this can be done using
+vcftools instead:
+
+#+BEGIN_SRC sh
+vcftools ... --hap-r2 --ld-window-bp 1000000 --min-r2 0.1
+#+END_SRC
+
+However, a wrapper will be needed to format the output correctly. The format
+for EUR+.txt.gz is tab-separated plaintext:
+
+#+BEGIN_SRC
+rs189107123|chr1|10611|10611|G  rs144762171|chr1|13327|13327|C	0.286308        0.739698
+#+END_SRC
+
+The first two columns are a pair of variants, followed by r^2 and D.  The names
+are formatted as rsid, chromosome, start (inclusive), end (inclusive), allele
+substitution. The Python function frea.formats.get_pouyak_name generates these
+from the 1KG reference information.
+
+We keep a BED file containing the MHC for use later in the pipeline.
+
+#+BEGIN_SRC sh
+data/gwas-summary-stats/Makefile
 #+END_SRC
 
 This repository does not include the GWAS data since we are not allowed to
 share the WTCCC1 individual-level data, and the remaining data is publicly
 available. Direct links are given in data/gwas-summary-stats/Makefile when
-available, but some of the consortium websites (e.g. T1DBase) require
-registering as a user.
+available.
 
 The Stahl et al. 2012 study of RA is on hg17, so it requires lifting over
 before imputation. frea.summary.process.ra() outputs a BED file with hg17
@@ -90,10 +143,15 @@ chain file:
 
 http://hgdownload.cse.ucsc.edu/goldenPath/hg17/liftOver/hg17ToHg19.over.chain.gz
 
+Summary statistics from the Bradfield et al., 2011 study of T1D require
+registering on http://www.t1dbase.org/, and then downloading from
+https://www.t1dbase.org/downloads/protected_data/GWAS_Data/. Imputing these to
+1KG requires WTCCC since they did not publish odds ratios.
+
 ** Imputing summary statistics
 
 In general, imputing summary statistics requires additional code to coerce data
-into the right format. The Python package frea.summary contains some utility
+into the right format. The Python subpackage frea.summary contains some utility
 functions which can simplify doing this.
 
 We re-implement the ImpG pipeline since we use the Thousand Genomes reference
@@ -101,26 +159,18 @@ in OXSTATS format to handle one of the studies in the main paper. This can be
 replaced with the scripts provided in the original implementation.
 
 #+BEGIN_SRC sh
-data/1kg/Makefile
 results/impg/maps/Makefile
 results/impg/haps/Makefile
+#+END_SRC
+
+The generation of reference maps and re-coded haplotypes can be done once and
+re-used. For each study, imputation proceeds like so:
+
+#+BEGIN_SRC sh
 results/impg/in/Makefile
 results/impg/beta/Makefile
 results/impg/out/Makefile
 #+END_SRC
-
-EUR+.txt.gz is pairwise LD using another custom program implemented in the
-lab. In principle this can be done using vcftools instead; however, a wrapper
-will be needed to format the output correctly. 
-
-The format for EUR+.txt.gz is tab-separated plaintext:
-
-rs189107123|chr1|10611|10611|G  rs144762171|chr1|13327|13327|C	0.286308        0.739698
-
-The first two columns are a pair of variants, followed by r^2 and D.  The names
-are formatted as rsid, chromosome, start (inclusive), end (inclusive), allele
-substitution. The Python function get_pouyak_name generates these from the 1KG
-reference information.
 
 The summary statistic format to take forward in the analysis is BED format,
 with the unique identifier described above in the name column (4) and -log10(p)
@@ -128,19 +178,70 @@ in the score column (5).
 
 ** Performing the analysis
 
-The analysis is implemented in four Makefiles; however, the main purpose of the
-Makefiles is to generate joblists which can be run using a wrapper as described
-above.
+The analysis is implemented across multiple Makefiles; however, the main
+purpose of the Makefiles is to generate joblists which can be run using a
+wrapper script as described above.
 
 #+BEGIN_SRC sh
 results/rrplot/core-features/Makefile
-results/matched/hb-features/Makefile
+#+END_SRC
+
+#+BEGIN_SRC R
+frea::plot_rrplot(gzfile('.../results/rrplot/core-features/all-traits/Enh.txt.gz'), 'SNP rank by p-value', 25000)
+#+END_SRC
+
+The key tasks here are to run frea-rrplot for each GWAS study and annotation to
+compute cumulative enrichment (in parallel on a cluster), then re-assemble the
+output to plot everything together and output the heuristic p-value/rank cutoff
+used in the remaining analysis (R function frea::plot_rrplot).
+
+For the paper, we restricted this analysis to the common set of variants across
+all phenotypes studied (all-studies-impg.bed.gz); however, this is not
+essential for performing the analysis on new data and can be safely removed.
+
+#+BEGIN_SRC sh
+results/ld/pruned/Makefile
+results/rrplot/core-features/pruned/Makefile
+#+END_SRC
+
+#+BEGIN_SRC R
+frea::plot_rrplot(gzfile('.../results/rrplot/core-features/pruned/Enh.txt.gz'), 'Independent loci by p-value', 5000)
+#+END_SRC
+
+To perform LD pruning, we shard the data into per-chromosome files, prune each
+chromosome (in parallel), then re-assemble the result. Then, we generate an
+analagous list of tasks running frea-rrplot and reassemble the result.
+
+#+BEGIN_SRC sh
+cd results/matched
+make FEATURES=hb-features
+make FEATURES=hb-features EnhClusters-significant.in
+#+END_SRC
+
+#+BEGIN_SRC R
+data(honeybadger_cluster_density, pkg='frea')
+frea::plot_enhancer_enrichments(gzfile('.../results/matched/hb-features/EnhClusters-significant.in'), honeybadger_cluster_density)
+#+END_SRC
+
+The key tasks here are to generate the list of tasks running frea-matched for
+each GWAS study and annotation (in parallel), then re-assembling the result.
+
+#+BEGIN_SRC sh
 results/great/Makefile
+#+END_SRC
+
+Pathway analysis using GREAT requires putting the generated BED files (make
+bed) on a publicly accessible HTTP server due to limits on upload size.
+
+#+BEGIN_SRC sh
 results/motifs/by-inst/Makefile
 #+END_SRC
 
-Pathway analysis using GREAT requires putting the generated BED files on a
-publicly accessible HTTP server.
+#+BEGIN_SRC R
+frea::plot_motif_enrichments(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'))
+data(honeybadger_cluster_density, pkg='frea')
+frea::plot_master_regulator_counts(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'), honeybadger_cluster_density)
+#+END_SRC
 
 The motif enrichment pipeline depends on software developed by Pouya
 Kheradpour. Instructions to compile these are available at
