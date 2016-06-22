@@ -70,9 +70,9 @@ This is implemented in several pieces. The key tasks are:
    all SNPs in 1KG
 
 #+BEGIN_SRC sh
-data/roadmap/Makefile
-data/roadmap/core-features/Makefile
-data/roadmap/hb-features/Makefile
+make -C data/roadmap core honeybadger
+make -C data/roadmap/core-features
+make -C data/roadmap/hb-features
 #+END_SRC
 
 The required directory structure for annotations is
@@ -86,7 +86,7 @@ as well as enhancer marks. These are generally within genes and can complicate
 the interpretation of the results.
 
 #+BEGIN_SRC sh
-data/encode/Makefile
+make -C data/encode
 #+END_SRC
 
 The ENCODE data is mostly public, with the exception of hierarchical clustering
@@ -94,9 +94,8 @@ of PWMs. The similarity measure was published, but the clustering itself (cut
 at k=300 clusters) was not, so we include it in the repository.
 
 #+BEGIN_SRC sh
-data/1kg/Makefile
-data/ld/Makefile
-data/mask/Makefile
+make -C data/1kg
+make -C data/mask
 #+END_SRC
 
 We use the Thousand Genomes reference in OXSTATS format to handle summary
@@ -128,7 +127,7 @@ from the 1KG reference information.
 We keep a BED file containing the MHC for use later in the pipeline.
 
 #+BEGIN_SRC sh
-data/gwas-summary-stats/Makefile
+make -C data/gwas-summary-stats ...
 #+END_SRC
 
 This repository does not include the GWAS data since we are not allowed to
@@ -159,17 +158,24 @@ in OXSTATS format to handle one of the studies in the main paper. This can be
 replaced with the scripts provided in the original implementation.
 
 #+BEGIN_SRC sh
-results/impg/maps/Makefile
-results/impg/haps/Makefile
+make -C results/impg/maps joblist{,.1}
+# Run everything in joblist, then joblist.1 (elided)
+make -C results/impg/haps joblist{,.1}
+# Run the jobs as above
 #+END_SRC
 
 The generation of reference maps and re-coded haplotypes can be done once and
 re-used. For each study, imputation proceeds like so:
 
 #+BEGIN_SRC sh
-results/impg/in/Makefile
-results/impg/beta/Makefile
-results/impg/out/Makefile
+# Prepare the files in ImpG format (elided)
+make -C results/impg/in joblist
+# Run the jobs (elided)
+make -C results/impg/beta joblist
+# Run the jobs (elided)
+make -C results/impg/out joblist
+# Run the jobs (elided)
+parallel python -m frea.summary.process_impg .../results/impg/out/{}.*.txt ::: $(seq 1 22) | bedtools sort | gzip >.../results/impg/out/STUDY.bed.gz
 #+END_SRC
 
 The summary statistic format to take forward in the analysis is BED format,
@@ -183,11 +189,13 @@ purpose of the Makefiles is to generate joblists which can be run using a
 wrapper script as described above.
 
 #+BEGIN_SRC sh
-results/rrplot/core-features/Makefile
-#+END_SRC
-
-#+BEGIN_SRC R
+make -C results/rrplot/core-features/all-traits joblist
+# Run the jobs (elided), then concatenate the output
+make -C results/rrplot/core-features/all-traits Enh.txt.gz
+R --vanilla --quiet <<EOF
 frea::plot_rrplot(gzfile('.../results/rrplot/core-features/all-traits/Enh.txt.gz'), 'SNP rank by p-value', 25000)
+EOF
+make -C results/rrplot/core-features/all-traits cutoffs
 #+END_SRC
 
 The key tasks here are to run frea-rrplot for each GWAS study and annotation to
@@ -200,12 +208,14 @@ all phenotypes studied (all-studies-impg.bed.gz); however, this is not
 essential for performing the analysis on new data and can be safely removed.
 
 #+BEGIN_SRC sh
-results/ld/pruned/Makefile
-results/rrplot/core-features/pruned/Makefile
-#+END_SRC
-
-#+BEGIN_SRC R
+# This can be at any desired threshold
+parallel make THRESH=0.8 GWAS={} -C results/ld/pruned/0.8 ::: .../results/impg/out/*.bed.gz
+make -C results/rrplot/core-features/pruned/0.8 joblist
+# Run the jobs (elided), then concatenate the output
+make -C results/rrplot/core-features/pruned/0.8 Enh.txt.gz
+R --vanilla --quiet <<EOF
 frea::plot_rrplot(gzfile('.../results/rrplot/core-features/pruned/Enh.txt.gz'), 'Independent loci by p-value', 5000)
+EOF
 #+END_SRC
 
 To perform LD pruning, we shard the data into per-chromosome files, prune each
@@ -213,34 +223,39 @@ chromosome (in parallel), then re-assemble the result. Then, we generate an
 analagous list of tasks running frea-rrplot and reassemble the result.
 
 #+BEGIN_SRC sh
-cd results/matched
-make FEATURES=hb-features
+make -C results/matched table.txt.gz
+make FEATURES=hb-features -C results/matched hb-features/joblist
+# Run the jobs (elided), then concatenate the output to EnhClusters.in
 make FEATURES=hb-features EnhClusters-significant.in
-#+END_SRC
-
-#+BEGIN_SRC R
+R --vanilla --quiet <<EOF
 data(honeybadger_cluster_density, pkg='frea')
 frea::plot_enhancer_enrichments(gzfile('.../results/matched/hb-features/EnhClusters-significant.in'), honeybadger_cluster_density)
+EOF
 #+END_SRC
 
 The key tasks here are to generate the list of tasks running frea-matched for
 each GWAS study and annotation (in parallel), then re-assembling the result.
 
 #+BEGIN_SRC sh
-results/great/Makefile
+make -C results/great bed
+# Upload the BED files to a public server (elided)
+make -C results/great joblist
+# Run the jobs (elided)
+make -C results/great new-genes.txt known-genes.txt summary
 #+END_SRC
 
 Pathway analysis using GREAT requires putting the generated BED files (make
 bed) on a publicly accessible HTTP server due to limits on upload size.
 
 #+BEGIN_SRC sh
-results/motifs/by-inst/Makefile
-#+END_SRC
-
-#+BEGIN_SRC R
+make -C results/motifs/by-inst enriched joblist{,.1}
+# Run everything in joblist, then joblist.1 (elided)
+make -C results/motifs/by-inst all-enrichments-unclustered.txt.gz
+R --vanilla --quiet <<EOF
 frea::plot_motif_enrichments(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'))
 data(honeybadger_cluster_density, pkg='frea')
 frea::plot_master_regulator_counts(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'), honeybadger_cluster_density)
+EOF
 #+END_SRC
 
 The motif enrichment pipeline depends on software developed by Pouya
