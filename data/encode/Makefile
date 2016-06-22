@@ -2,8 +2,8 @@ CURL := curl -sfS
 
 all: clusters.txt $(addsuffix .txt.gz,enrichments expr-corr motifs-toscan) $(addsuffix .bed.gz,matches motif-background)
 
-clusters.txt:
-	awk '{split($$2, a, "[(),]*"); for (i in a) {if (a[i] != "") {print a[i], $$1}}}' /broad/compbio/pouyak/motifs/verts/data/motifs/tfh/table/motifs-clust.txt >$@
+clusters.txt: motifs-clust.txt
+	awk '{split($$2, a, "[(),]*"); for (i in a) {if (a[i] != "") {print a[i], $$1}}}' $< >$@
 
 enrichments.txt.gz:
 	$(CURL) -O "http://egg2.wustl.edu/roadmap/data/byDataType/motifanalysis/pouyak/clustered/enrichments.txt.gz"
