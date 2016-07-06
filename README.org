@@ -63,9 +63,10 @@ awk -vFS='\t' '$1 != "Seq" && ($7 != 0 || $8 != 0) {print $9}' $*
 This is implemented in several pieces. The key tasks are:
 
 1. Download Roadmap Epigenomics data and generate a directory structure of BED
-   files containing the enhancer annotations
-2. Download ENCODE data and prepare files for motif enrichment
-3. Download the Thousand Genomes reference (for SHAPEIT2/IMPUTE2 imputation in
+   files containing the enhancer annotations and a directory containing the
+   gene expression RPKM (for studying transcription factor expression)
+3. Download ENCODE data and prepare files for motif enrichment
+4. Download the Thousand Genomes reference (for SHAPEIT2/IMPUTE2 imputation in
    WTCCC and summary statistic imputation) and compute LD information between
    all SNPs in 1KG
 
@@ -73,6 +74,7 @@ This is implemented in several pieces. The key tasks are:
 make -C data/roadmap core honeybadger
 make -C data/roadmap/core-features
 make -C data/roadmap/hb-features
+make -C data/roadmap/expression
 #+END_SRC
 
 The required directory structure for annotations is
@@ -94,6 +96,7 @@ of PWMs. The similarity measure was published, but the clustering itself (cut
 at k=300 clusters) was not, so we include it in the repository.
 
 #+BEGIN_SRC sh
+make -C data/1kg stage
 make -C data/1kg
 make -C data/mask
 #+END_SRC
@@ -193,7 +196,7 @@ make -C results/rrplot/core-features/all-traits joblist
 # Run the jobs (elided), then concatenate the output
 make -C results/rrplot/core-features/all-traits Enh.txt.gz
 R --vanilla --quiet <<EOF
-frea::plot_rrplot(gzfile('.../results/rrplot/core-features/all-traits/Enh.txt.gz'), 'SNP rank by p-value', 25000)
+frea::plot_rrplot('.../results/rrplot/core-features/all-traits/Enh.txt.gz', 'SNP rank by p-value', 25000)
 EOF
 make -C results/rrplot/core-features/all-traits cutoffs
 #+END_SRC
@@ -214,7 +217,7 @@ make -C results/rrplot/core-features/pruned/0.8 joblist
 # Run the jobs (elided), then concatenate the output
 make -C results/rrplot/core-features/pruned/0.8 Enh.txt.gz
 R --vanilla --quiet <<EOF
-frea::plot_rrplot(gzfile('.../results/rrplot/core-features/pruned/Enh.txt.gz'), 'Independent loci by p-value', 5000)
+frea::plot_rrplot('.../results/rrplot/core-features/pruned/Enh.txt.gz', 'Independent loci by p-value', 5000)
 EOF
 #+END_SRC
 
@@ -229,7 +232,7 @@ make FEATURES=hb-features -C results/matched hb-features/joblist
 make FEATURES=hb-features EnhClusters-significant.in
 R --vanilla --quiet <<EOF
 data(honeybadger_cluster_density, pkg='frea')
-frea::plot_enhancer_enrichments(gzfile('.../results/matched/hb-features/EnhClusters-significant.in'), honeybadger_cluster_density)
+frea::plot_enhancer_enrichments('.../results/matched/hb-features/EnhClusters-significant.in', honeybadger_cluster_density)
 EOF
 #+END_SRC
 
