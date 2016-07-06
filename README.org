@@ -15,6 +15,7 @@ thousands of independent loci in eight diseases"
   - gtool
   - IMPUTE2
   - SNPTEST
+  - UCSC liftOver
   - ImpG-Summary
   - plink2
   - curl
@@ -178,7 +179,7 @@ make -C results/impg/beta joblist
 # Run the jobs (elided)
 make -C results/impg/out joblist
 # Run the jobs (elided)
-parallel python -m frea.summary.process_impg .../results/impg/out/{}.*.txt ::: $(seq 1 22) | bedtools sort | gzip >.../results/impg/out/STUDY.bed.gz
+make -C results/impg/out STUDY.bed.gz
 #+END_SRC
 
 The summary statistic format to take forward in the analysis is BED format,
