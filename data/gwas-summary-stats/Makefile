@@ -1,7 +1,7 @@
 CURL := curl -sfSO
 
 RA_GWASmeta2_20090505-results.txt:
-	$(CURL)"https://www.broadinstitute.org/ftp/pub/rheumatoid_arthritis/Stahl_etal_2010NG/RA_GWASmeta2_20090505-results.txt"
+	$(CURL) "https://www.broadinstitute.org/ftp/pub/rheumatoid_arthritis/Stahl_etal_2010NG/RA_GWASmeta2_20090505-results.txt"
 
 pgc.bip.2012-04.zip:
 	$(CURL) "http://www.med.unc.edu/pgc/files/resultfiles/pgc.bip.2012-04.zip"
