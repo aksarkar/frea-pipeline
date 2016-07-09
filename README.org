@@ -151,6 +151,66 @@ registering on http://www.t1dbase.org/, and then downloading from
 https://www.t1dbase.org/downloads/protected_data/GWAS_Data/. Imputing these to
 1KG requires WTCCC since they did not publish odds ratios.
 
+** Imputing Wellcome Trust Case Control Consortium genotypes
+
+The imputation pipeline is implemented in two separate Makefiles: one for QC
+and pre-phasing, and one for imputation and post-processing. The pipeline is
+designed this way because downstream analyses require both the QC'ed
+observations and the imputed probabilities.
+
+The WTCCC genotypes are downloadable through EGA
+(http://www.wtccc.org.uk/info/access_to_data_samples.html). We assume the data
+is in IMPUTE/SNPTEST format (http://www.wtccc.org.uk/info/data_formats.html),
+and convert to IMPUTE2/SNPTEST2 format
+(http://www.stats.ox.ac.uk/~marchini/software/gwas/file_format.html) in our
+implementation. We provide a manifest of files we used in our analysis in
+data/wtccc/haplotypes/manifest.
+
+We make a number of critical choices in our pipeline:
+
+1. Pre-imputation QC removes only the samples/SNPs in the provided exclusion
+   list (we do not impose more stringent thresholds on e.g. missingness)
+2. We convert hg17 names/positions/strands to our identifiers (see below), hg19
+   positions, and + strand using published information
+3. Pre-phasing is done on each cohort independently to reduce computational
+   burden
+4. Eigendecomposition for population structure is done on observed genotypes
+   only
+
+#+BEGIN_SRC sh
+  make -C data/arrays
+  cd data/wtccc/haplotypes
+  # Symlink to the data (elided; analagous to make pre)
+  make joblist{,.1}
+  # Run the tasks in joblist, then joblist.1 (elided)
+
+  # Now perform the eigendecomposition. This could be parallelized further by
+  # making individual targets, e.g. make T1D.eigenvec
+  make
+#+END_SRC
+
+#+BEGIN_SRC sh
+  cd data/wtccc/1kg-phase1
+  # We performed imputation in separate stages to save on space storing the
+  # output, e.g. run everything in T1D.joblist in temporary space (make sure to
+  # run make DATA=... to correctly set the data directory in that case), then
+  # verify average concordance (interactively), compress, and copy to the final
+  # location
+  make pre
+  make joblist
+  # Run everything in T1D.joblist (elided)
+  make T1D-concordance
+  make T1D-gz
+  make T1D-install
+#+END_SRC
+
+#+BEGIN_SRC sh
+  cd results/wtccc/snptest
+  make pre
+  make T1D.joblist
+  # Run everything in T1D.joblist (elided)
+#+END_SRC
+
 ** Imputing summary statistics
 
 In general, imputing summary statistics requires additional code to coerce data
