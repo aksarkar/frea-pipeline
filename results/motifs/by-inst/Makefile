@@ -88,7 +88,7 @@ clusters: ../../matched/hb-features/EnhClusters-significant.in
 	awk '{print $$1, $$3, $$4}' $< | sort -k1,1 -k2,2n >$@
 
 clean:
-	parallel -X rm -f ::: *.fg.* *.bg.* *.fisher.txt *.disruptions *.counts *.summary
+	find -name "*.fisher.txt" -o -name "*.summary" -o -name "*.matches" -o -name "*.bed.gz" | parallel -X rm
 
 .DELETE_ON_ERROR:
 
