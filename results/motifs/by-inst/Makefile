@@ -34,6 +34,13 @@ known-tfs.txt: all-enrichments-unclustered.txt.gz $(DATA)/phegeni/phegeni.txt.gz
 all-enrichments-unclustered.txt.gz:
 	python -c "from frea.motifs.enrichments import *; output_cofactors()" | gzip >$@
 
+
+all-enrichments-summary.txt.gz:
+	awk 'FNR == 1 {split(FILENAME, a, ".")} {print a[1], a[2], $$0}' *.fisher.txt | sort -k1,1 -k2,2n -k5,5g | gzip >$@
+
+all-matches.txt.gz:
+	awk 'FNR == 1 {split(FILENAME, a, ".")} {print a[1], a[2], $$0}' *.matches | gzip >$@
+
 regulators: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.regulators)))
 
 %.regulators:
