@@ -3,7 +3,7 @@ DATA := $(abspath $(RESULTS)/../data)
 GWAS := $(wildcard $(RESULTS)/impg/out/*.bed.gz)
 
 THRESH := 0
-CHR := 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 
+CHR := 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
 
 $(notdir $(GWAS)): $(foreach c, $(CHR), chr$(c)-pruned.gz)
 	python -m frea.ld.collect | gzip >$@

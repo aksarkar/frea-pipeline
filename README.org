@@ -213,10 +213,10 @@ essential for performing the analysis on new data and can be safely removed.
 
 #+BEGIN_SRC sh
 # This can be at any desired threshold
-parallel make THRESH=0.8 GWAS={} -C results/ld/pruned/0.8 ::: .../results/impg/out/*.bed.gz
-make -C results/rrplot/core-features/pruned/0.8 joblist
+parallel make THRESH=0.8 GWAS={} -C results/ld/pruned ::: .../results/impg/out/*.bed.gz
+make -C results/rrplot/core-features/pruned joblist
 # Run the jobs (elided), then concatenate the output
-make -C results/rrplot/core-features/pruned/0.8 Enh.txt.gz
+make -C results/rrplot/core-features/pruned Enh.txt.gz
 R --vanilla --quiet <<EOF
 frea::plot_rrplot('.../results/rrplot/core-features/pruned/Enh.txt.gz', 'Independent loci by p-value', 5000)
 EOF
@@ -227,6 +227,7 @@ chromosome (in parallel), then re-assemble the result. Then, we generate an
 analagous list of tasks running frea-rrplot and reassemble the result.
 
 #+BEGIN_SRC sh
+make -C data/ld
 make -C results/matched table.txt.gz
 make FEATURES=hb-features -C results/matched hb-features/joblist
 # Run the jobs (elided), then concatenate the output to EnhClusters.in
