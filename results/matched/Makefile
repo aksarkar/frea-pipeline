@@ -2,7 +2,7 @@ DATA := $(abspath ../../data)
 RESULTS := $(abspath ..)
 SUMMARY := $(RESULTS)/impg/out
 MHC := $(DATA)/mask/mhc+5mb.bed.gz
-LD := /broad/compbio/pouyak/popgen/proj/1kg/phase1/corr/EUR+.txt.gz
+CUTOFFS := $(RESULTS)/rrplot/core-features/all-traits/cutoffs
 
 INTERSECT := bedtools intersect -sorted -nobuf
 EXPAND = python -m frea.ld.expand $< | bedtools sort | gzip
@@ -25,7 +25,7 @@ export FDR
 	echo "$$FDR"
 	python -c "$$FDR" >$@
 
-$(FEATURES)/joblist: $(RESULTS)/rrplot/core-features/all-traits/cutoffs table.txt.gz
+$(FEATURES)/joblist: $(CUTOFFS) table.txt.gz
 	mkdir -p $(FEATURES)
 	parallel --dry-run -C" " frea-matched :::: $(word 1,$^) ::: $(abspath $(word 2,$^)) ::: $(DATA)/roadmap/$(FEATURES)/*/*.bed.gz >$@
 
@@ -59,6 +59,6 @@ tss-dist.txt.gz: $(DATA)/1kg/1kg-eur.bed.gz
 	bedtools intersect -sorted -nobuf -v -a $< -b $(MHC) | bedtools closest -d -a stdin -b $(DATA)/encode/Gencodev10_CAGE_TSS_clusters_May2012.gff.gz | awk -vOFS='\t' '{print $$4, int($$NF/1000)}' | sort -k1 | gzip >$@
 
 ld.txt.gz:
-	zcat $(LD) | awk '{count[$$1]++; count[$$2]++} END {for (c in count) {print c, count[c]}}' | sort -k1 | gzip >$@
+	zcat $(DATA)/ld/*.gz | awk '{count[$$1]++; count[$$2]++} END {for (c in count) {print c, count[c]}}' | sort -k1 | gzip >$@
 
 .DELETE_ON_ERROR:
