@@ -1,5 +1,6 @@
 DATA := $(abspath ../../data)
 RESULTS := $(abspath ..)
+CUTOFFS := $(RESULTS)/rrplot/core-features/all-traits/cutoffs
 SUMMARY := $(RESULTS)/impg/out
 MHC := $(DATA)/mask/mhc+5mb.bed.gz
 CUTOFFS := $(RESULTS)/rrplot/core-features/all-traits/cutoffs
