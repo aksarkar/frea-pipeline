@@ -5,8 +5,9 @@
 This respository contains the computational pipeline used to perform the
 analysis presented in:
 
-Sarkar, Ward, Kellis. "Functional enrichments of disease variants across
-thousands of independent loci in eight diseases"
+- Sarkar, A. K., Ward, L. D., & Kellis, M. (2016). Functional enrichments of
+  disease variants across thousands of independent loci in eight diseases.
+  bioRxiv. http://dx.doi.org/10.1101/048066
 
 * Dependencies
   - http://www.github.com/aksarkar/frea
