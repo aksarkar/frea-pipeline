@@ -1,6 +1,8 @@
 *.bed
 *.beta
 *.bim
+*.cutoffs
+*.dot
 *.eigen*
 *.exclude
 *.fam
@@ -17,6 +19,7 @@
 *.pdf
 *.pheno
 *.po*
+*.ranks
 *.sample
 *.snp
 *.summary
