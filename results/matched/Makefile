@@ -32,21 +32,6 @@ $(FEATURES)/joblist: $(CUTOFFS) table.txt.gz
 
 bed: $(notdir $(wildcard $(SUMMARY)/*.bed.gz))
 
-control/joblist: $(RESULTS)/rrplot/core-features/all-traits/cutoffs table.txt.gz $(addprefix control/,$(notdir $(wildcard $(SUMMARY)/*.bed.gz)))
-	parallel --dry-run -C" " frea-matched :::: $(word 1,$^) ::: $(abspath $(word 2,$^)) ::: $(DATA)/roadmap/$(FEATURES)/*/*.bed.gz >$@
-
-control/%.bed.gz: %.bed.gz coding.bed.gz %-loci.bed.gz
-	$(INTERSECT) -v -a $< -b $(word 2, $^) | $(INTERSECT) -v -a stdin -b $(word 3, $^) | gzip >$@
-
-coding.bed.gz: exonic.bed.gz $(DATA)/mask/tss+2kb.bed.gz
-	python -m frea.multimerge $^ | cut -f1-3 | bedtools merge | bedtools sort | gzip >$@
-
-%-loci.bed.gz: $(DATA)/1kg/EUR+.txt.gz %.bed.gz
-	zcat $(word 2, $^) | awk -vFS='\t' -vOFS='\t' '{if ($$5 > 8 - log(5)) {print $$0, 1} else {print $$0, 0}}' | $(EXPAND) >$@
-
-exonic.bed.gz: $(DATA)/1kg/EUR+.txt.gz
-	zcat $(DATA)/mask/gencode.v10.annotation.gtf.gz | awk '$$3 == "exon" && /protein_coding/ && /gene_status "KNOWN"/ && /transcript_status "KNOWN"/' | $(INTERSECT:-sorted=-c) -a ../restrict/all-studies-impg.bed.gz -b stdin | $(EXPAND) >$@
-
 %.bed.gz: $(SUMMARY)/%.bed.gz
 	$(INTERSECT) -v -a $< -b $(MHC) | gzip >$@
 
