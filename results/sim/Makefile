@@ -1,6 +1,14 @@
 DATA := $(abspath ../..)
 SEED := 0
 
+%.gz: %
+	gzip $<
+
+$(SEED).bed.gz: $(foreach c,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22,$(SEED).$(c).txt.gz)
+	parallel --halt now,fail=1 -j1 python -c "\""'from frea.summary.process import *; oxstats_snptest_to_ucsc_bed('"'"$(SEED).{}.txt.gz"'", "'"{}"'"')'"\"" ::: $$(seq -w 1 22) | gzip >$@
+
+.INTERMEDIATE: $(foreach c,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22,$(SEED).$(c).txt.gz)
+
 define PREPARE
 FNR == NR {
 	h = "PC1"
@@ -26,11 +34,14 @@ FNR < NR && FNR >= 2 && $$1 "|" $$2 in eigen {
 endef
 export PREPARE
 
+$(SEED).%.txt: $(SEED).covars
+	snptest -chunk 10000 -data 58C_$*.gen.gz $< -pheno pheno -cov_all_continuous -frequentist 1 -method expected -o $(SEED).$*.txt >$(SEED).$*.log
+
 $(SEED).covars: T1D.eigenvec $(SEED).pheno
 	awk "$$PREPARE" $^ >$@
 
 $(SEED).pheno: 58C-clean.sample
-	zcat $(DATA)/wtccc/1kg-phase1/58C_*.gen.gz | python -m frea.simulation $(SEED) - 58C-clean.sample >$@
+	zcat 58C_*.gen.gz | python -m frea.simulation $(SEED) - 58C-clean.sample >$@
 
 .INTERMEDIATE: $(SEED).pheno
 
@@ -41,9 +52,12 @@ pre:
 	parallel -X ln -sf {} . ::: $(DATA)/wtccc/1kg-phase1/58C*.gen.gz $(DATA)/wtccc/haplotypes/*.{eigenvec,exclude,sample}
 
 joblist.1:
-	parallel --dry-run "snptest -chunk 10000 -data $(DATA)/wtccc/1kg-phase1/58C_{1}.gen.gz {2} -pheno pheno -cov_all_continuous -frequentist 1 -method em -o {2.}.{1}.txt >{2.}.{1}.log" ::: $$(seq 1 22) ::: *.covars >$@
+	parallel --dry-run "make SEED={1.} {1.}.{2}.txt.gz" ::: *.covars ::: $$(seq -w 1 22) >$@
 
 joblist:
-	parallel --dry-run make DATA=$(DATA) SEED={} ::: $$(seq 0 99) >$@
+	parallel --dry-run make SEED={} ::: $$(seq 0 99) >$@
+
+clean:
+	find \( -name "snptest.*" -o -name "*.txt.gz" -o -name "*.log" \) | parallel -X rm
 
 .DELETE_ON_ERROR:
