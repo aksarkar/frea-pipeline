@@ -1,37 +1,68 @@
 DATA := $(abspath ../..)
-N := 2000
+N := 50000
+DOWNSAMPLE := 100
 SEED := 0
 PVE := 0.5
 SHELL := bash
-PLINK := plink --memory 4000
 AUTOSOMES := 1 10 11 12 13 14 15 16 17 18 19 2 20 21 22 3 4 5 6 7 8 9
 
-$(SEED).bed.gz: $(foreach c,$(AUTOSOMES),$(SEED).$(c).bed.gz)
+PREFIX := $(SEED)-$(N)-$(PVE)
+
+PLINK = plink --memory 4000 --vcf $< --const-fid 0 --allow-no-sex --out $(SEED).$*
+REF = ALL.chr$*.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.{legend,haplotypes}.gz ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample $*.hotspots.gz
+SIM = frea-simulate --covars $(word 3, $^) --chunk 100 chr$* $(word 1, $^) $(word 2, $^)
+
+$(PREFIX).bed.gz: $(foreach c,$(AUTOSOMES),$(PREFIX).$(c).bed.gz)
 	zcat $^ | bedtools sort | gzip >$@
 
-$(SEED).%.assoc.linear: $(SEED).%.vcf.gz $(SEED).%.pheno $(SEED).%.eigenvec
-	$(PLINK) --vcf $< --const-fid 0 --pheno $(word 2, $^) --covar $(word 3, $^) --allow-no-sex --linear --ci .95 --out $(SEED).$*
+$(PREFIX).%.assoc.linear: $(PREFIX).%.vcf.gz $(PREFIX).%.pheno $(PREFIX).%.eigenvec
+	$(PLINK) --pheno $(word 2, $^) --covar $(word 3, $^) --linear --ci .95
 
-$(SEED).%.eigenval $(SEED).%.eigenvec: $(SEED).%.vcf.gz
-	$(PLINK) --vcf $< --const-fid 0 --allow-no-sex --pca --out $(SEED).$*
+$(PREFIX).%.eigenval $(PREFIX).%.eigenvec: $(PREFIX).%.vcf.gz
+	$(PLINK) --pca
 
-$(SEED).%.vcf.gz $(SEED).%.pheno: $(SEED).pheno.pkl $(SEED).%.pkl
-	frea-output-genotypes 0 $* $^ ALL.chr$*.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.{legend,haplotypes}.gz ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample <(zgrep -w chr$* decodeHotSpotFemale.txt.gz | gzip) $(SEED).$*
+.INTERMEDIATE: $(foreach c, $(AUTOSOMES), $(PREFIX).$(c).eigenvec)
 
-$(SEED).%.bed.gz: $(SEED).pheno.pkl $(SEED).%.pkl
-	frea-simulate $(SEED) $^ ALL.chr$*.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.{legend,haplotypes}.gz ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample <(zgrep -w chr$* decodeHotSpotFemale.txt.gz | gzip) | sed s/,/chr$*/g | gzip >$@
+$(PREFIX).%.vcf.gz $(PREFIX).%.pheno: $(PREFIX).pheno.pkl $(PREFIX).%.pkl
+	frea-output-genotypes $* $^ $(PREFIX).$*
 
-$(SEED).pheno.pkl: $(foreach c,$(AUTOSOMES),$(SEED).$(c).pkl)
-	frea-combine-pheno --pve $(PVE) $(SEED) $^ $@
+.PRECIOUS: $(foreach c, $(AUTOSOMES), $(PREFIX).$(c).vcf.gz)
 
-$(SEED).%.pkl:
-	frea-sample-events $(SEED) $(N) ALL.chr$*.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.nosing.{legend,haplotypes}.gz ALL.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.sample <(zgrep -w chr$* decodeHotSpotFemale.txt.gz | gzip) $@
+ldsc: $(PREFIX).ldsc
+
+.PHONY: ldsc
+
+$(PREFIX).ldsc: $(PREFIX).txt.gz
+	ldsc.py --h2 $< --ref-ld-chr ./ --w-ld-chr ./ >$@
+
+$(PREFIX).txt.gz: $(foreach c, $(AUTOSOMES), $(PREFIX).$(c).txt.gz)
+	zcat $^ | gzip >$@
+
+$(PREFIX).%.txt.gz: $(PREFIX).pheno.pkl $(PREFIX).%.pkl $(PREFIX).svd.pkl
+	$(SIM) --output-sumstats | gzip >$@
+
+$(PREFIX).%.bed.gz: $(PREFIX).pheno.pkl $(PREFIX).%.pkl $(PREFIX).svd.pkl
+	$(SIM) | gzip >$@
+
+$(PREFIX).svd.pkl: $(foreach c,$(AUTOSOMES),$(PREFIX).$(c).pkl)
+	frea-pca --n-per-block=$(DOWNSAMPLE) $^ $@
+
+$(PREFIX).pheno.pkl: $(foreach c,$(AUTOSOMES),$(PREFIX).$(c).pkl)
+	frea-combine-pheno --pve=$(PVE) $^ $@
+
+$(PREFIX).%.pkl: hotspots
+	frea-sample-events $(SEED) $(N) $(REF) $@
+
+hotspots: $(foreach c,$(AUTOSOMES),$(c).hotspots.gz)
+	touch $@
+
+%.hotspots.gz:
+	zgrep -w chr$* decodeHotSpotFemale.txt.gz | gzip >$@
+
+.PRECIOUS: $(foreach c,$(AUTOSOMES),$(c).hotspots.gz)
 
 pre:
-	parallel -X ln -sf {} . ::: $(DATA)/1kg/*.{gz,sample} $(DATA)/decode/*.txt.gz
-
-joblist:
-	parallel --dry-run make SEED={} ::: $$(seq 0 99) >$@
+	parallel -X ln -sf {} . ::: $(DATA)/1kg/*.{gz,sample} $(DATA)/decode/*.txt.gz $(DATA)/ldsc/*.{ldscore.gz,m_5_50}
 
 clean:
 	find \( -name "*.pkl" -o -name "*.*.bed.gz" \) | parallel -X rm
