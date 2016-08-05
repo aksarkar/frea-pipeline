@@ -36,7 +36,7 @@ $(PREFIX).ldsc: $(PREFIX).txt.gz
 	ldsc.py --h2 $< --ref-ld-chr ./ --w-ld-chr ./ >$@
 
 $(PREFIX).txt.gz: $(foreach c, $(AUTOSOMES), $(PREFIX).$(c).txt.gz)
-	zcat $^ | gzip >$@
+	zcat $^ | awk 'NR == 1 || $$1 != "SNP"' | gzip >$@
 
 $(PREFIX).%.txt.gz: $(PREFIX).pheno.pkl $(PREFIX).%.pkl $(PREFIX).svd.pkl
 	$(SIM) --output-sumstats | gzip >$@
