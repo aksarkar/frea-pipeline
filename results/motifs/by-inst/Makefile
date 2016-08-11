@@ -41,6 +41,15 @@ all-enrichments-summary.txt.gz:
 all-matches.txt.gz:
 	awk 'FNR == 1 {split(FILENAME, a, ".")} {print a[1], a[2], $$0}' *.matches | gzip >$@
 
+%-matches-linked-symbols.txt.gz: %-matches-linked.txt.gz
+	python -c "from frea.motifs.enrichments import *; output_linked_genes('$<', '$(DATA)/gene-enh-links/union_link_sig_FDR01_protein_coding.txt.gz')" | sort -k4 | gzip >$@
+
+%-matches-linked.txt.gz: %-matches.txt.gz
+	zcat $< | awk -vOFS='\t' '{print $$5, $$6, $$7, $$1"|"$$2"|"$$3"|"$$4"|"$$10}' | bedtools intersect -wb -a stdin -b $(DATA)/roadmap/gene-enh-links/links.fdr.01.bed.gz | bedtools sort | uniq | gzip >$@
+
+%-matches.txt.gz:
+	awk 'FNR == 1 {split(FILENAME, a, ".")} {print a[1], a[2], $$0}' $*.*.matches | gzip >$@
+
 regulators: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.regulators)))
 
 %.regulators:
