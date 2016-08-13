@@ -16,6 +16,9 @@ $(notdir $(GWAS)): $(foreach c, $(CHR), chr$(c)-pruned.gz)
 shard: $(GWAS)
 	python -m frea.ld.shard $<
 
+all-loci.bed.gz:
+	$(PARALLEL) 'zgrep -v inf {1} | sort -k4 | bedtools groupby -g 4 -c 5 -o max | awk -vOFS=$$"\t" '"'"'BEGIN {a="{}"; sub(/.bed.gz/, "", a)} {print a, $$0}'"'" ::: bradfield-t1d.bed.gz cardiogram-cad.bed.gz diagram-t2d.bed.gz igap-ad.bed.gz iibdgc-cd.bed.gz pgc-bip.bed.gz pgc-scz.bed.gz stahl-ra.bed.gz | gzip >$@
+
 fdr-0.05.ranks: num-loci.txt
 	$(PARALLEL) -C" " 'zgrep -v inf {1} | sort -k4 | bedtools groupby -g 4 -c 5 -o max | sort -k2gr | awk '"'"'$$2 <= -log(0.05 * NR / {2}) / log(10) {print "{1}", NR; exit}'"'" :::: $< >$@
 
