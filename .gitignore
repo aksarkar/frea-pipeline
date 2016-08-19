@@ -27,5 +27,6 @@
 *.typed
 *joblist*
 .rsync-filter
+data/
 locate.db
 stage
