@@ -7,7 +7,7 @@ INTERSECT := bedtools intersect -sorted -nobuf
 PHENO := bradfield-t1d
 THRESH := 3
 CLUSTER := 1
-FDR := .05
+FDR := .017
 
 define FILTER
 awk -vFS='\t' -vOFS='\t' 'FNR > 5 && $$1 == "GO Biological Process" && $$7 < $(FDR) && $$8 > 1 {print $$3, $$19}' $$*

@@ -17,7 +17,7 @@ define FDR
 import frea.algorithms
 with open('$<') as f:
 	data = [line.split() for line in f]
-	for record in frea.algorithms.benjamini_hochberg(data, key=lambda x: float(x[7])):
+	for record in frea.algorithms.benjamini_hochberg(data, key=lambda x: float(x[7]), fdr=0.017):
 		print(*record)
 endef
 export FDR

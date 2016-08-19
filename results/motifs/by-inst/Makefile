@@ -1,7 +1,7 @@
 PHENO := bradfield-t1d
 THRESH := 3
 CLUSTER := 1
-FDR := 0.05
+FDR := 0.017
 
 DATA := $(abspath ../../../data)
 ENCODE := $(DATA)/encode
