@@ -51,7 +51,7 @@ known-genes.txt: genes
 	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {print "{.}", s}'"'" {} ::: *.genes >$@
 
 genes:
-	parallel -j1 -C'\t' make -B NAME={1} {2}.genes ::: "Menarche	reprogen-menarche" "Menopause	reprogen-menopause"
+	parallel -j1 -C'\t' make -B NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Diabetes Mellitus, Type 1	bradfield-t1d" "Diabetes Mellitus, Type 2	diagram-t2d"	"Menarche	reprogen-menarche" "Menopause	reprogen-menopause"
 
 %.genes:
 	comm <(zgrep "$(NAME)" $(DATA)/phegeni/phegeni.txt.gz | cut -f7 | tr ' ' '\n' | sort | uniq) <(cut -f2 $*.*.out | tr ',' '\n' | sort | uniq) >$@
