@@ -292,9 +292,9 @@ make -C data/ld
 make -C results/matched table.txt.gz
 make FEATURES=hb-features -C results/matched hb-features/joblist
 # Run the jobs (elided), then concatenate the output to EnhClusters.in
-make FEATURES=hb-features EnhClusters-significant.in
+make FEATURES=hb-features -C results/matched EnhClusters-significant.in
 R --vanilla --quiet <<EOF
-data(honeybadger_cluster_density, pkg='frea')
+data(honeybadger_cluster_density, package='frea')
 frea::plot_enhancer_enrichments('.../results/matched/hb-features/EnhClusters-significant.in', honeybadger_cluster_density)
 EOF
 #+END_SRC
