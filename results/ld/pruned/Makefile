@@ -1,11 +1,19 @@
-RESULTS := $(abspath ../../..)
+RESULTS := $(abspath ../..)
 DATA := $(abspath $(RESULTS)/../data)
 GWAS := $(wildcard $(RESULTS)/impg/out/*.bed.gz)
 
 PARALLEL := parallel -j4 --halt soon,fail=1
-
+PREFIX = $(notdir $(GWAS:.bed.gz=))
 THRESH := 0
 CHR := 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+
+export DATA
+export GWAS
+
+all:
+	mkdir -p $(PREFIX)
+	ln -sf $(abspath Makefile) $(PREFIX)/Makefile
+	$(MAKE) -e -C $(PREFIX) $(notdir $(GWAS))
 
 $(notdir $(GWAS)): $(foreach c, $(CHR), chr$(c)-pruned.gz)
 	python -m frea.ld.collect | gzip >$@
@@ -26,5 +34,8 @@ num-loci.txt:
 	$(PARALLEL) 'echo {} $$(zgrep -v inf {} | sort -k4 | bedtools groupby -g 4 -c 5 -o max | wc -l)' ::: *.bed.gz
 
 .PHONY: shard
+
+clean:
+	find \( -name "chr*.txt.gz" -o -name "chr*-pruned.gz" \) | parallel -X rm
 
 .DELETE_ON_ERROR:
