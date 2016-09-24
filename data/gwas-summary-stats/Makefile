@@ -9,6 +9,9 @@ pgc.bip.2012-04.zip:
 scz2.snp.results.txt.gz:
 	$(CURL) "http://www.med.unc.edu/pgc/files/resultfiles/scz2.snp.results.txt.gz"
 
+pgc-scz-summary.txt.gz: scz2.snp.results.txt.gz
+	zcat $< | awk 'NR == 1 {print; next} {print | "sort -k1,1 -k5,5n"}' | gzip >$@
+
 iibdgc-trans-ancestry-summary-stats.tar:
 	$(CURL) --ftp-pasv 'ftp://ftp.sanger.ac.uk/pub/consortia/ibdgenetics/iibdgc-trans-ancestry-summary-stats.tar'
 
