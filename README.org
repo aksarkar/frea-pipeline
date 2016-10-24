@@ -326,10 +326,4 @@ EOF
 
 The motif enrichment pipeline depends on software developed by Pouya
 Kheradpour. Instructions to compile these are available at
-http://compbio.mit.edu/pouyak/
-
-extract-mfa extracts sequence fragments in fasta format but expects data in a
-custom format (since it was developed to deal with multiple alignments). In
-principle, it can be replaced with bedtools getfasta and the hg19 reference
-sequence; however, an additional wrapper script to format identifiers will be
-required.
+http://compbio.mit.edu/pouyak/.
