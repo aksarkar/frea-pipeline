@@ -3,6 +3,7 @@ CASES := BD CAD CD HT RA T1D T2D
 COHORT := 58C NBS $(CASES)
 SRC := $(wildcard *_chiamo.gz)
 SHELL := bash
+POSTERIOR_THRESH := 0.1
 
 GCTA = gcta64-1.24 --thread-num 8 --out $*
 PLINK = plink --memory 4000 --out $(basename $@)
@@ -72,16 +73,16 @@ export NAMES
 ## Hack: This doesn't seem to actually be local to the recipe?
 58C_%.bed: C = $$(echo $* | sed s/^0//)
 58C_%.bed: 58C_%.gen.gz
-	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(C) "$$NAMES") --sample 58C-clean.sample --hard-call-threshold .01 --oxford-single-chr $(C) --make-bed >/dev/null
+	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(C) "$$NAMES") --sample 58C-clean.sample --hard-call-threshold $(POSTERIOR_THRESH) --oxford-single-chr $(C) --make-bed >/dev/null
 
 NBS_%.bed: C = $$(echo $* | sed s/^0//)
 NBS_%.bed: NBS_%.gen.gz
-	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(C) "$$NAMES") --sample NBS-clean.sample --hard-call-threshold .01 --oxford-single-chr $(C) --make-bed >/dev/null
+	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(C) "$$NAMES") --sample NBS-clean.sample --hard-call-threshold $(POSTERIOR_THRESH) --oxford-single-chr $(C) --make-bed >/dev/null
 
 %.bed: COHORT = $(word 1, $(subst _, ,$*))
 %.bed: CHR = $$(echo $* | sed s/^.*_0\\?//)
 %.bed: %.gen.gz %.keep
-	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(CHR) "$$NAMES") --sample $(COHORT)-clean.sample --hard-call-threshold .01 --oxford-single-chr $(CHR) --extract $*.keep --make-bed >/dev/null
+	$(PLINK) --gen <(zcat $< | awk -v chromosome=$(CHR) "$$NAMES") --sample $(COHORT)-clean.sample --hard-call-threshold $(POSTERIOR_THRESH) --oxford-single-chr $(CHR) --extract $*.keep --make-bed >/dev/null
 
 %.keep: COHORT = $(word 1, $(subst _, ,$*))
 %.keep: C = $$(echo $* | sed s/^.*_//)
