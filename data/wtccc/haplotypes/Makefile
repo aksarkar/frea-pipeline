@@ -6,7 +6,7 @@ CASES := BD CAD CD HT RA T1D T2D
 COHORT := 58C NBS $(CASES)
 SRC := $(wildcard *_chiamo.gz)
 
-GCTA = gcta64-1.24 --thread-num 16 --out $*
+GCTA = gcta64-1.24 --thread-num $(NSLOTS) --out $*
 PLINK = plink --memory 4096 --out $(basename $@)
 EXCLUDE = awk '/^[^\#]/ {print $$3, $$3}' $< >$@
 
@@ -15,14 +15,26 @@ all: $(SRC:_chiamo.gz=.haps.gz) $(CASES:=.eigenvec)
 %.eigenvec: %.grm.bin
 	$(GCTA) --grm $* --pca 10 >/dev/null
 
+all.grm.bin: all.grm.txt
+	$(GCTA) all --mgrm $< --make-grm >/dev/null
+
+all.grm.txt:
+	parallel -j1 echo chr{} ::: $$(seq -w 1 22) >$@
+
 %.grm.bin: %-merge.bed
 	$(GCTA) --bfile $(basename $<) --make-grm >/dev/null
 
+chr%-merge.bed: chr%.merge
+	$(PLINK) --merge-list $< --make-bed >/dev/null
+
+chr%.merge:
+	parallel -j1 echo {}_$* ::: 58C NBS BD CAD CD HT RA T1D T2D >$@
+
 %-merge.bed: %.merge %_01.bed
-	$(PLINK) --bfile $*_01 --merge-list $*.merge --make-pheno $*_01.fam '*' --make-bed >/dev/null
+	$(PLINK) --merge-list $*.merge --make-pheno $*_01.fam '*' --make-bed >/dev/null
 
 %.merge:
-	parallel -j1 echo {1}_{2} ":::" 58C NBS $* ::: $(shell seq -w 1 22) | grep -v $*_01 >$@
+	parallel -j1 echo {1}_{2} ":::" 58C NBS $* ::: $$(seq -w 1 22) >$@
 
 %.haps.gz: %.haps
 	gzip $<
@@ -110,11 +122,14 @@ strand:
 pre: manifest
 	parallel -X ln -s {} . :::: $< || true
 
+joblist.2:
+	parallel -j1 --dry-run make chr{}.grm.bin ::: $$(seq -w 1 22) >$@
+
 joblist.1:
 	parallel -j1 --dry-run make {1}_{2}.haps.gz ::: $(COHORT) ::: $$(seq -w 1 22) >$@
 
 joblist: sample exclude strand
-	parallel -j1 --dry-run make {1}_{2}.bed ::: $(COHORT) ::: $$(seq -w 1 22) >$@
+	parallel -j1 --dry-run make DATA=$(DATA) {1}_{2}.bed ::: $(COHORT) ::: $$(seq -w 1 22) >$@
 
 clean:
 	find . \( -type f -o -type l \) \! \( -name "Makefile" -o -name "manifest" -o -name "*.haps.gz" -o -name "*.eigenvec" -o -name "*.sample" -o -name "*.exclude" \) | parallel -X rm
