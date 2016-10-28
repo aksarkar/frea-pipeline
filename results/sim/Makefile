@@ -3,7 +3,7 @@ SEED := 0
 PVE := 0.18
 SNPTEST = snptest -chunk 1000 -cov_all_continuous -frequentist 1 -method expected -o $@
 
-AUTOSOMES := 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22
+AUTOSOMES := 01 10 11 12 13 14 15 16 17 18 19 02 20 21 22 03 04 05 06 07 08 09
 C := 58C NBS BD CAD CD HT RA T1D T2D
 COHORT := {58C,NBS,BD,CAD,CD,HT,RA,T1D,T2D}
 
