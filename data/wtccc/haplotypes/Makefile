@@ -127,10 +127,13 @@ strand:
 pre: manifest
 	parallel -X ln -s {} . :::: $< || true
 
-joblist.2:
+joblist.3: sample exclude strand
+	parallel -j1 --dry-run make DATA=$(DATA) {1}_{2}.lift.gz ::: $(COHORT) ::: $$(seq -w 1 22) >$@
+
+joblist.2: sample exclude strand
 	parallel -j1 --dry-run make chr{}.grm.bin ::: $$(seq -w 1 22) >$@
 
-joblist.1:
+joblist.1: sample exclude strand
 	parallel -j1 --dry-run make {1}_{2}.haps.gz ::: $(COHORT) ::: $$(seq -w 1 22) >$@
 
 joblist: sample exclude strand
