@@ -29,7 +29,7 @@ $(SEED).pheno.pkl: $(foreach c,$(AUTOSOMES),$(SEED).$(c).pkl)
 	frea-combine-pheno --pve=$(PVE) $^ $@
 
 $(SEED).%.pkl:
-	frea-sample-gvs --p-causal=0.74 -- $(SEED) $(COHORT){-clean.sample,_$*.gen.gz} $@
+	frea-sample-gvs --p-causal=0.74 -- $(SEED) $(COHORT){-clean.sample,_$*.gen.gz} $@ 2>$(@:.pkl=.log)
 
 joblist.1:
 	parallel -j1 --dry-run make SEED={1} AUTOSOMES={2} HOLDOUT="'$(HOLDOUT)'" {1}.{2}.txt.gz ::: $$(seq 1 10) ::: $(AUTOSOMES) >$@
