@@ -30,6 +30,11 @@ chr%-merge.bed: chr%.merge
 chr%.merge:
 	parallel -j1 echo {}_$* ::: 58C NBS BD CAD CD HT RA T1D T2D >$@
 
+pheno: $(CASES:=-merge.pheno)
+
+%.pheno: %.bed
+	awk '{print $$1, $$2, $$6}' $(<:bed=fam) >$@
+
 %-merge.bed: %.merge %_01.bed
 	$(PLINK) --merge-list $*.merge --make-pheno $*_01.fam '*' --make-bed >/dev/null
 
@@ -134,6 +139,6 @@ joblist: sample exclude strand
 clean:
 	find . \( -type f -o -type l \) \! \( -name "Makefile" -o -name "manifest" -o -name "*.haps.gz" -o -name "*.eigenvec" -o -name "*.sample" -o -name "*.exclude" \) | parallel -X rm
 
-.PHONY: pre clean
+.PHONY: pre clean pheno
 
 .DELETE_ON_ERROR:

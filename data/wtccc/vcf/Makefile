@@ -13,6 +13,30 @@ all: $(CASES=.vcf.bgz)
 %.vcf.gz: %-merge.exclude %-merge.bed
 	$(PLINK:.vcf=) --bfile $*-merge --exclude $< --recode vcf bgz >/dev/null
 
+define PARAMS
+BD	.24	.005
+CAD	.25	.025
+CD	.17	.001
+HT	.33	.025
+RA	.09	.005
+T1D	.13	.005
+T2D	.42	.05
+endef
+export PARAMS
+
+redo: joblist.1
+	awk '{out=$$NF; sub("&>", "", out); sub(".log", ".gwas", out); if (system("stat " out " &>/dev/null") != 0) {print}}' $< >$@
+
+joblist.1:
+	parallel -j1 -C"\t" --dry-run "mediator-was-wtccc --bfile {1}-leap --bfilesim ../haplotypes/{1}-merge --pve {2} -K {3} --chr {4} --prune 0.05 &>{1}-leap.{4}.log" ::: "$$PARAMS" ::: $$(seq 1 22) >$@
+
+leap: $(CASES:=-leap.bed)
+
+.PHONY: leap
+
+%-leap.bed %-leap.bim %-leap.fam: %-merge.exclude %-merge.bed
+	$(PLINK) --bfile $*-merge --exclude $< --geno .01 --maf .01 --hwe midp 1e-5 --snps-only --make-bed >/dev/null
+
 %-clean.bed %-clean.bim %-clean.fam: %-merge.exclude %-merge.bed
 	$(PLINK) --bfile $*-merge --exclude $< --geno .05 --maf .01 --hwe .05 --make-bed >/dev/null
 
