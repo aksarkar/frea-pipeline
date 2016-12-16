@@ -19,7 +19,7 @@ failed:
 .PHONY: failed
 
 $(SEED).%.txt: $(SEED).sentinel
-	frea-output-summary -z -w 1000 $(HOLDOUT) $* $(COHORT){-$(SEED).pheno,_$*.gen.gz} >$@
+	frea-output-summary -z -w 1000 -s $(SEED) $(HOLDOUT) $* $(COHORT){-$(SEED).pheno,_$*.gen.gz} >$@
 
 $(SEED).sentinel: $(SEED).pheno.pkl
 	frea-output-pheno $< $(SEED) $(COHORT)-clean.sample
