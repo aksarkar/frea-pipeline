@@ -43,10 +43,14 @@ FNR < NR {
 endef
 export PREPARE
 
+58C.sample: $(addprefix $(DATA)/wtccc/haplotypes/58C,.eigenvec .sample)
+	awk -v pheno=0 "$$PREPARE" $< $(DATA)/wtccc/haplotypes/58C.sample >58C.sample
+
+NBS.sample: $(addprefix $(DATA)/wtccc/haplotypes/NBS,.eigenvec .sample)
+	awk -v pheno=0 "$$PREPARE" $< $(DATA)/wtccc/haplotypes/NBS.sample >NBS.sample
+
 %.sample: $(addprefix $(DATA)/wtccc/haplotypes/%,.eigenvec .sample)
 	awk -v pheno=1 "$$PREPARE" $^ >$@
-	awk -v pheno=0 "$$PREPARE" $< $(DATA)/wtccc/haplotypes/58C.sample >58C.sample
-	awk -v pheno=0 "$$PREPARE" $< $(DATA)/wtccc/haplotypes/NBS.sample >NBS.sample
 
 .PRECIOUS: %.sample
 
