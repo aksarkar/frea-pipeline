@@ -16,7 +16,7 @@ failed:
 .PHONY: failed
 
 $(SEED).%.txt.gz: $(SEED).sentinel
-	frea-output-summary -z -w 1000 -s $(SEED) $(HOLDOUT) $* $(COHORT){-$(SEED).pheno,_$*.gen.gz} | gzip >$@
+	frea-output-summary -w 1000 -s $(SEED) $(HOLDOUT) $* $(COHORT){-$(SEED).pheno,_$*.gen.gz} | gzip >$@
 
 $(SEED).sentinel: $(SEED).pheno.pkl
 	frea-output-pheno $< $(SEED) $(COHORT)-clean.sample
