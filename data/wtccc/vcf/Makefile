@@ -8,7 +8,10 @@ POSTERIOR_THRESH := 0.1
 GCTA = gcta64-1.24 --thread-num 8 --out $*
 PLINK = plink --memory 4000 --out $(basename $@)
 
-all: $(CASES=.vcf.bgz)
+all: $(foreach c,$(CASES),$(addprefix $(c).vcf.gz, .tbi))
+
+%.vcf.gz.tbi: %.vcf.gz
+	tabix -p vcf $<
 
 %.vcf.gz: %-merge.exclude %-merge.bed
 	$(PLINK:.vcf=) --bfile $*-merge --exclude $< --recode vcf bgz >/dev/null
@@ -52,10 +55,10 @@ leap: $(CASES:=-leap.bed)
 	$(PLINK) --bfile $*-merge --test-missing >/dev/null
 
 58C-merge.bed: 58C.merge
-	$(PLINK) --merge-list $< --make-bed
+	$(PLINK) --merge-list $< --make-bed >/dev/null
 
 %-merge.bed %-merge.fam %-merge.bim: %.merge %_01.bed
-	$(PLINK) --merge-list $*.merge --make-pheno $*_01.fam '*' --make-bed
+	$(PLINK) --merge-list $*.merge --make-pheno $*_01.fam '*' --make-bed >/dev/null
 
 58C.merge:
 	parallel echo 58C_{} ::: $$(seq -w 1 22) >$@
