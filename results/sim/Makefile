@@ -44,6 +44,6 @@ pre:
 	touch $@
 
 clean:
-	find \( -name "*.pkl" -o -name "*.*.bed.gz" \) | parallel -X rm
+	find \( -name "*.pkl" -o -name "*.*.bed.gz" -o -name "*.pheno" -o -name "*.txt.gz" \) | parallel -X rm
 
 .DELETE_ON_ERROR:
