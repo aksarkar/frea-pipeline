@@ -79,7 +79,7 @@ $(PHENO).%.bg.regions:
 top: $(foreach p,$(wildcard $(GWAS)/*.bed.gz),$(notdir $(p:.bed.gz=.top.bed.gz)))
 
 %.top.bed.gz:
-	$(INTERSECT) -v -a $(GWAS)/$*.bed.gz -b $(DATA)/mask/mhc+5mb.bed.gz | awk '$$5 >= $(THRESH)' | gzip >$@
+	$(INTERSECT) -v -a $(GWAS)/$*.bed.gz -b $(DATA)/mask/mhc+5mb.bed.gz | bedtools groupby -g 4 -o first,first,first,max -c 1,2,3,5 | awk -vOFS='\t' '$$5 >= $(THRESH) {print $$2, $$3, $$4, $$1, $$5}' | gzip >$@
 
 c%.bed.gz: enriched
 	zcat $(ENCODE)/matches.bed.gz | awk 'BEGIN {while (getline < "$<") {if ($$4 == "c$*") {keep[$$2] = 1}}} keep[$$4] > 0 {print}' | $(INTERSECT) -u -a stdin -b $(ENHCLUSTERS)/$*.bed.gz | gzip >$@
