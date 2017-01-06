@@ -1,5 +1,6 @@
 DATA := $(abspath ../../data)
-RESULTS := $(abspath ..)
+RESULTS := $(DATA:data=results)
+CUTOFFS := ../matched/hb-features/EnhClusters-significant.in
 SHELL := bash
 MAKEOVERRIDES := "-j5"
 INTERSECT := bedtools intersect -sorted -nobuf
@@ -15,6 +16,11 @@ endef
 export FILTER
 
 all: $(PHENO).$(CLUSTER).out
+
+gene-counts: $(addsuffix .gene-counts,ad bip cad cd ra scz t1d t2d)
+
+%.gene-counts:
+	cat *-$*.*.out | cut -f2 | tr ',' '\n' | sort | uniq | wc -l | awk -vOFS='\t' '{print toupper("$*"), $$0}'
 
 summary: $(addsuffix .summary,ad bip cad cd ra scz t1d t2d)
 
@@ -56,7 +62,7 @@ genes:
 %.genes:
 	comm <(zgrep "$(NAME)" $(DATA)/phegeni/phegeni.txt.gz | cut -f7 | tr ' ' '\n' | sort | uniq) <(cut -f2 $*.*.out | tr ',' '\n' | sort | uniq) >$@
 
-.PHONY: genes %.summary count-pathways
+.PHONY: genes summary
 
 .PRECIOUS: %.bed.gz %.txt
 
