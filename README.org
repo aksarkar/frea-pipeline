@@ -311,17 +311,20 @@ make -C results/great new-genes.txt known-genes.txt summary
 #+END_SRC
 
 Pathway analysis using GREAT requires putting the generated BED files (make
-bed) on a publicly accessible HTTP server due to limits on upload size.
+bed) on a publicly accessible HTTP server due to limits on upload
+size. Alternatively, one could build a local copy of GREAT (however, we did not
+successfully compile the software in our environment).
 
 #+BEGIN_SRC sh
 make -C results/motifs/by-inst enriched joblist{,.1}
 # Run everything in joblist, then joblist.1 (elided)
-make -C results/motifs/by-inst all-enrichments-unclustered.txt.gz
+make -C results/motifs/by-inst all-enrichments-summary.txt.gz known-tfs.txt
 R --vanilla --quiet <<EOF
-frea::plot_motif_enrichments(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'))
+frea::plot_motif_enrichments(gzfile('.../results/motifs/by-inst/all-enrichments-summary.txt.gz'))
 data(honeybadger_cluster_density, pkg='frea')
-frea::plot_master_regulator_counts(gzfile('.../results/motifs/by-inst/all-enrichments-unclustered.txt.gz'), honeybadger_cluster_density)
+frea::plot_master_regulator_counts(gzfile('.../results/motifs/by-inst/all-enrichments-summary.txt.gz'), honeybadger_cluster_density)
 EOF
+make -C results/motifs/by-inst all-enrichments-network.pdf
 #+END_SRC
 
 The motif enrichment pipeline depends on software developed by Pouya
