@@ -51,10 +51,10 @@ clusters: ../matched/hb-features/EnhClusters-significant.in
 	awk '{print $$1, $$3, $$4}' $< | sort -k1,1 -k2,2n >$@
 
 new-genes.txt: genes
-	parallel 'awk -vFS="\t" '"'"'$$2 != "" {if (s != "") {s = s","} s = s $$2} END {print "{.}", s}'"'" {} ::: *.genes >$@
+	parallel 'awk -vFS="\t" '"'"'$$2 != "" {if (s != "") {s = s","} s = s $$2} END {f = "{.}"; sub(".*-", "", f); print toupper(f), s}'"'" {} ::: *.genes >$@
 
 known-genes.txt: genes
-	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {print "{.}", s}'"'" {} ::: *.genes >$@
+	parallel 'awk -vFS="\t" '"'"'$$3 != "" {if (s != "") {s = s","} s = s $$3} END {f = "{.}"; sub(".*-", "", f); print toupper(f), s}'"'" {} ::: *.genes >$@
 
 genes:
 	parallel -j1 -C'\t' make -B NAME={1} {2}.genes ::: "Alz	igap-ad" "Bip	pgc-bip" "Coronary	cardiogram-cad" "Crohn	iibdgc-cd" "Rheum	stahl-ra" "Schiz	pgc-scz" "Diabetes Mellitus, Type 1	bradfield-t1d" "Diabetes Mellitus, Type 2	diagram-t2d"	"Menarche	reprogen-menarche" "Menopause	reprogen-menopause"
